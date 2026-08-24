@@ -1,11 +1,9 @@
 import re
 import statistics
-from urllib.parse import urljoin, urlparse, quote_plus
-
+from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, render_template_string, request, jsonify
-
 
 app = Flask(__name__)
 
@@ -19,2036 +17,521 @@ HEADERS = {
         "Chrome/151.0.0.0 Safari/537.36"
     ),
     "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8",
-    "Accept": (
-        "text/html,application/xhtml+xml,"
-        "application/xml;q=0.9,image/webp,*/*;q=0.8"
-    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-
-# =========================================================
-# HTML
-# =========================================================
-
-HTML = r"""
-<!DOCTYPE html>
-
+HTML = """
+<!doctype html>
 <html lang="ar" dir="rtl">
-
 <head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Active Online — Trendyol Intelligence</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
 <style>
-
-body {
-    font-family: Arial, sans-serif;
-}
-
-.report {
-    white-space: pre-wrap;
-    line-height: 2;
-}
-
-.card {
-    transition: .2s;
-}
-
-.card:hover {
-    transform: translateY(-3px);
-}
-
-@media print {
-
-    body * {
-        visibility: hidden;
-    }
-
-    #report,
-    #report * {
-        visibility: visible;
-    }
-
-    #report {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-    }
-
-    .no-print {
-        display: none !important;
-    }
-}
-
+body{font-family:Arial,sans-serif;background:#f3f4f6;margin:0;color:#172033}
+.wrap{max-width:1100px;margin:30px auto;padding:20px}
+.card{background:#fff;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 4px 18px #0001}
+input,textarea{width:100%;box-sizing:border-box;padding:13px;border:1px solid #ddd;border-radius:10px;margin:7px 0 15px}
+button{background:#155eef;color:#fff;border:0;border-radius:10px;padding:13px 22px;font-weight:bold;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.stat{color:#fff;border-radius:14px;padding:18px;background:#155eef}
+.product{border:1px solid #e5e7eb;border-radius:14px;padding:16px}
+.product img{width:100%;height:190px;object-fit:cover;border-radius:10px}
+.error{background:#fee2e2;color:#991b1b;padding:15px;border-radius:10px;margin-top:15px}
+.warn{background:#fef3c7;color:#92400e;padding:15px;border-radius:10px;margin-top:15px}
+pre{white-space:pre-wrap;line-height:1.9;background:#f8fafc;padding:20px;border-radius:12px}
+a{color:#155eef;text-decoration:none;font-weight:bold}
+.hidden{display:none}
 </style>
-
 </head>
+<body>
+<div class="wrap">
+<div class="card">
+<h1>Active Online — Trendyol Intelligence</h1>
+<p>تحليل متجر ومنتجات Trendyol</p>
 
+<label>اسم المتجر</label>
+<input id="storeName" value="Trendyol Store">
 
-<body class="bg-gray-100">
+<label>الفئة</label>
+<input id="category" value="Home & Furniture">
 
-<div class="max-w-7xl mx-auto p-5">
+<label>الميزانية TL</label>
+<input id="budget" type="number" value="10000">
 
+<label>رابط المتجر / صفحة Trendyol</label>
+<input id="url" placeholder="https://www.trendyol.com/magaza/...">
 
-<!-- HEADER -->
+<button onclick="analyze()">تحليل المتجر</button>
 
-<div class="text-center mb-8 no-print">
+<div id="error" class="error hidden"></div>
 
-<h1 class="text-4xl font-black text-blue-900">
-Active Online
-</h1>
-
-<p class="text-xl text-gray-600">
-Trendyol Intelligence
-</p>
-
-<p class="text-sm text-gray-500 mt-2">
-تحليل المتاجر والمنتجات والمنافسة والأسعار
-</p>
-
+<div id="manual" class="warn hidden">
+<b>Trendyol رفض اتصال Render بـ HTTP 403.</b>
+<p>أدخل روابط المنتجات المباشرة، رابط في كل سطر.</p>
+<textarea id="manualUrls" rows="7" placeholder="https://www.trendyol.com/...-p-123456"></textarea>
+<button onclick="manualAnalyze()">تحليل الروابط</button>
 </div>
-
-
-<!-- INPUT -->
-
-<div class="bg-white rounded-2xl shadow p-7 mb-8 no-print">
-
-<h2 class="text-2xl font-bold text-blue-900 mb-6">
-🚀 تحليل متجر Trendyol
-</h2>
-
-
-<div class="grid md:grid-cols-3 gap-4 mb-5">
-
-<div>
-
-<label class="font-bold">
-اسم المتجر
-</label>
-
-<input
-id="storeName"
-value="Trendyol Store"
-class="w-full border rounded-xl p-3 mt-2"
->
-
 </div>
-
-
-<div>
-
-<label class="font-bold">
-الفئة
-</label>
-
-<input
-id="category"
-value="Home & Furniture"
-class="w-full border rounded-xl p-3 mt-2"
->
-
-</div>
-
-
-<div>
-
-<label class="font-bold">
-الميزانية TL
-</label>
-
-<input
-id="budget"
-type="number"
-value="10000"
-class="w-full border rounded-xl p-3 mt-2"
->
-
-</div>
-
-</div>
-
-
-<label class="font-bold">
-رابط المتجر أو صفحة Trendyol
-</label>
-
-<div class="flex gap-3 mt-2">
-
-<input
-id="url"
-placeholder="https://www.trendyol.com/magaza/..."
-class="flex-1 border rounded-xl p-4"
->
-
-<button
-onclick="analyze()"
-id="btn"
-class="bg-blue-600 hover:bg-blue-700 text-white px-8 rounded-xl font-bold"
->
-تحليل
-</button>
-
-</div>
-
-
-<div
-id="loading"
-class="hidden mt-5 text-center text-blue-600 font-bold"
->
-⏳ جاري التحليل...
-</div>
-
-
-<div
-id="errorBox"
-class="hidden mt-5 bg-red-50 border border-red-300 text-red-700 p-5 rounded-xl"
-></div>
-
-
-<!-- MANUAL MODE -->
-
-<div
-id="manualBox"
-class="hidden mt-6 bg-yellow-50 border border-yellow-300 rounded-xl p-6"
->
-
-<h3 class="font-bold text-lg mb-3">
-⚠️ Trendyol رفض الاتصال من Render
-</h3>
-
-<p class="text-sm leading-7 mb-4">
-
-هذا يعني أن Trendyol أعاد HTTP 403 للسيرفر.
-لذلك لا نستطيع استخراج الصفحة مباشرة من Render.
-
-يمكنك استخدام الوضع اليدوي بإدخال روابط منتجات Trendyol
-الحقيقية، كل رابط في سطر.
-
-</p>
-
-<textarea
-id="manualUrls"
-rows="7"
-placeholder="https://www.trendyol.com/....-p-123456
-https://www.trendyol.com/....-p-789012"
-class="w-full border rounded-xl p-4"
-></textarea>
-
-<button
-onclick="manualAnalyze()"
-class="mt-4 bg-yellow-600 text-white px-7 py-3 rounded-xl font-bold"
->
-تحليل الروابط
-</button>
-
-</div>
-
-</div>
-
-
-<!-- RESULT -->
 
 <div id="results" class="hidden">
-
-
-<!-- STATS -->
-
-<div class="grid md:grid-cols-5 gap-4 mb-8 no-print">
-
-<div class="bg-blue-600 text-white rounded-2xl p-5">
-
-<div>المنتجات</div>
-
-<div id="total" class="text-3xl font-black">
-0
+<div class="grid">
+<div class="stat">المنتجات<h2 id="total">0</h2></div>
+<div class="stat">متوسط السعر<h2 id="avg">0 TL</h2></div>
+<div class="stat">أقل سعر<h2 id="min">0 TL</h2></div>
+<div class="stat">أعلى سعر<h2 id="max">0 TL</h2></div>
+<div class="stat">Opportunity<h2 id="score">0/100</h2></div>
 </div>
 
+<div class="card">
+<h2>التقرير</h2>
+<pre id="report"></pre>
 </div>
 
-
-<div class="bg-green-600 text-white rounded-2xl p-5">
-
-<div>متوسط السعر</div>
-
-<div id="avg" class="text-3xl font-black">
-0
+<div class="card">
+<h2>المنتجات — روابط مباشرة</h2>
+<div id="products" class="grid"></div>
 </div>
-
 </div>
-
-
-<div class="bg-purple-600 text-white rounded-2xl p-5">
-
-<div>أقل سعر</div>
-
-<div id="min" class="text-3xl font-black">
-0
 </div>
-
-</div>
-
-
-<div class="bg-indigo-600 text-white rounded-2xl p-5">
-
-<div>أعلى سعر</div>
-
-<div id="max" class="text-3xl font-black">
-0
-</div>
-
-</div>
-
-
-<div class="bg-orange-500 text-white rounded-2xl p-5">
-
-<div>Opportunity</div>
-
-<div id="score" class="text-3xl font-black">
-0
-</div>
-
-</div>
-
-</div>
-
-
-<!-- CHARTS -->
-
-<div class="grid md:grid-cols-2 gap-6 mb-8 no-print">
-
-
-<div class="bg-white rounded-2xl shadow p-6">
-
-<h3 class="font-bold text-xl mb-4">
-📊 أسعار المنتجات
-</h3>
-
-<div class="h-80">
-
-<canvas id="priceChart"></canvas>
-
-</div>
-
-</div>
-
-
-<div class="bg-white rounded-2xl shadow p-6">
-
-<h3 class="font-bold text-xl mb-4">
-📈 مؤشرات المتجر
-</h3>
-
-<div class="h-80">
-
-<canvas id="scoreChart"></canvas>
-
-</div>
-
-</div>
-
-</div>
-
-
-<!-- REPORT -->
-
-<div
-id="report"
-class="bg-white rounded-2xl shadow p-8 mb-8"
->
-
-<div class="flex justify-between border-b pb-5 mb-6">
-
-<div>
-
-<h2 class="text-3xl font-black text-blue-900">
-التقرير الاستخباراتي الشامل
-</h2>
-
-<p
-id="meta"
-class="text-gray-500 mt-2"
-></p>
-
-</div>
-
-
-<div class="flex gap-2 no-print">
-
-<button
-onclick="downloadPDF()"
-class="bg-red-600 text-white px-4 py-2 rounded-xl font-bold"
->
-PDF
-</button>
-
-<button
-onclick="window.print()"
-class="bg-green-600 text-white px-4 py-2 rounded-xl font-bold"
->
-طباعة
-</button>
-
-</div>
-
-</div>
-
-
-<div
-id="reportText"
-class="report bg-gray-50 rounded-xl p-6"
-></div>
-
-</div>
-
-
-<!-- PRODUCTS -->
-
-<div class="bg-white rounded-2xl shadow p-7">
-
-<h2 class="text-2xl font-bold mb-6">
-🔗 المنتجات
-</h2>
-
-<div
-id="products"
-class="grid md:grid-cols-3 gap-5"
-></div>
-
-</div>
-
-
-</div>
-
-</div>
-
 
 <script>
-
-let chart1 = null;
-let chart2 = null;
-
-
-async function analyze() {
-
-    const url =
-        document.getElementById("url").value.trim();
-
-    if (!url) {
-
-        alert("ضع رابط Trendyol");
-
-        return;
-    }
-
-
-    document
-        .getElementById("loading")
-        .classList.remove("hidden");
-
-
-    document
-        .getElementById("errorBox")
-        .classList.add("hidden");
-
-
-    document
-        .getElementById("manualBox")
-        .classList.add("hidden");
-
-
-    document
-        .getElementById("btn")
-        .disabled = true;
-
-
-    try {
-
-        const response = await fetch(
-            "/api/analyze",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-
-                body: JSON.stringify({
-
-                    storeName:
-                        document.getElementById("storeName").value,
-
-                    category:
-                        document.getElementById("category").value,
-
-                    budget:
-                        document.getElementById("budget").value,
-
-                    url: url
-
-                })
-            }
-        );
-
-
-        const data =
-            await response.json();
-
-
-        if (data.type === "TRENDYOL_403") {
-
-            showManualMode();
-
-            throw new Error(
-                "Trendyol رفض الاتصال من Render."
-            );
-        }
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                data.error || "فشل التحليل"
-            );
-        }
-
-
-        showResults(data);
-
-    }
-
-    catch (error) {
-
-        document
-            .getElementById("errorBox")
-            .innerText =
-                error.message;
-
-        document
-            .getElementById("errorBox")
-            .classList.remove("hidden");
-
-    }
-
-    finally {
-
-        document
-            .getElementById("loading")
-            .classList.add("hidden");
-
-        document
-            .getElementById("btn")
-            .disabled = false;
-
-    }
-
+function esc(s){
+  return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;")
+    .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 }
 
+async function analyze(){
+  hideError();
+  const url=document.getElementById("url").value.trim();
+  if(!url){showError("ضع رابط Trendyol أولاً.");return;}
 
+  const res=await fetch("/api/analyze",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      url,
+      storeName:document.getElementById("storeName").value,
+      category:document.getElementById("category").value,
+      budget:document.getElementById("budget").value
+    })
+  });
+  const data=await res.json();
 
-function showManualMode() {
-
-    document
-        .getElementById("manualBox")
-        .classList.remove("hidden");
-
+  if(data.type==="TRENDYOL_403"){
+    document.getElementById("manual").classList.remove("hidden");
+    showError("Trendyol رفض طلب Render بـ HTTP 403. استعمل الوضع اليدوي أدناه.");
+    return;
+  }
+  if(!res.ok){showError(data.error || "فشل التحليل.");return;}
+  showResults(data);
 }
 
-
-
-async function manualAnalyze() {
-
-    const text =
-        document.getElementById("manualUrls").value;
-
-
-    const urls =
-        text
-        .split("\\n")
-        .map(x => x.trim())
-        .filter(Boolean);
-
-
-    if (!urls.length) {
-
-        alert("أدخل روابط المنتجات");
-
-        return;
-    }
-
-
-    const response = await fetch(
-        "/api/manual",
-        {
-
-            method: "POST",
-
-            headers: {
-                "Content-Type":
-                    "application/json"
-            },
-
-            body: JSON.stringify({
-
-                storeName:
-                    document.getElementById("storeName").value,
-
-                category:
-                    document.getElementById("category").value,
-
-                budget:
-                    document.getElementById("budget").value,
-
-                urls: urls
-
-            })
-
-        }
-    );
-
-
-    const data =
-        await response.json();
-
-
-    if (!response.ok) {
-
-        alert(
-            data.error ||
-            "فشل التحليل"
-        );
-
-        return;
-    }
-
-
-    showResults(data);
-
+async function manualAnalyze(){
+  hideError();
+  const urls=document.getElementById("manualUrls").value.split("\\n").map(x=>x.trim()).filter(Boolean);
+  const res=await fetch("/api/manual",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      urls,
+      storeName:document.getElementById("storeName").value,
+      category:document.getElementById("category").value,
+      budget:document.getElementById("budget").value
+    })
+  });
+  const data=await res.json();
+  if(!res.ok){showError(data.error || "فشل التحليل.");return;}
+  showResults(data);
 }
 
+function showResults(data){
+  const s=data.statistics;
+  document.getElementById("total").textContent=s.products_collected;
+  document.getElementById("avg").textContent=s.average_price+" TL";
+  document.getElementById("min").textContent=s.min_price+" TL";
+  document.getElementById("max").textContent=s.max_price+" TL";
+  document.getElementById("score").textContent=s.opportunity_score+"/100";
+  document.getElementById("report").textContent=data.report;
 
-
-function showResults(data) {
-
-    const s =
-        data.statistics;
-
-
-    document
-        .getElementById("total")
-        .innerText =
-            s.products_collected;
-
-
-    document
-        .getElementById("avg")
-        .innerText =
-            s.average_price + " TL";
-
-
-    document
-        .getElementById("min")
-        .innerText =
-            s.min_price + " TL";
-
-
-    document
-        .getElementById("max")
-        .innerText =
-            s.max_price + " TL";
-
-
-    document
-        .getElementById("score")
-        .innerText =
-            s.opportunity_score + "/100";
-
-
-    document
-        .getElementById("meta")
-        .innerText =
-            "المتجر: " +
-            data.store_info.store_name;
-
-
-    document
-        .getElementById("reportText")
-        .innerText =
-            data.report;
-
-
-    renderProducts(
-        data.products
-    );
-
-
-    renderCharts(
-        data.products,
-        s
-    );
-
-
-    document
-        .getElementById("results")
-        .classList.remove("hidden");
-
+  const box=document.getElementById("products");
+  box.innerHTML="";
+  data.products.forEach(p=>{
+    const d=document.createElement("div");
+    d.className="product";
+    d.innerHTML=
+      (p.image ? `<img src="${esc(p.image)}">` : "")+
+      `<h3>${esc(p.title)}</h3>
+       <p>السعر: <b>${p.price || "غير متاح"} TL</b></p>
+       <p>التقييم: <b>${p.rating ?? "غير متاح"}</b></p>
+       <p>المراجعات: <b>${p.review_count ?? "غير متاح"}</b></p>
+       <p>Opportunity: <b>${p.opportunity_score}/100</b></p>
+       <a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">🔗 فتح المنتج مباشرة</a>`;
+    box.appendChild(d);
+  });
+  document.getElementById("results").classList.remove("hidden");
 }
 
-
-
-function renderProducts(products) {
-
-    const box =
-        document.getElementById("products");
-
-    box.innerHTML = "";
-
-
-    products.forEach(p => {
-
-        const div =
-            document.createElement("div");
-
-
-        div.className =
-            "card border rounded-2xl p-5 bg-gray-50";
-
-
-        const directLink =
-            p.is_direct_product
-            ? `
-            <a
-                href="${p.url}"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="block bg-green-600 text-white text-center p-3 rounded-xl font-bold"
-            >
-            🔗 فتح المنتج مباشرة
-            </a>
-            `
-            :
-            `
-            <div class="bg-yellow-100 text-yellow-800 p-3 rounded-xl text-center text-sm">
-            رابط المنتج غير متاح مباشرة
-            </div>
-            `;
-
-
-        div.innerHTML = `
-
-            ${
-                p.image
-                ?
-                `<img
-                    src="${escapeHtml(p.image)}"
-                    class="w-full h-52 object-cover rounded-xl mb-4"
-                >`
-                :
-                ""
-            }
-
-
-            <h3 class="font-bold mb-4">
-                ${escapeHtml(p.title)}
-            </h3>
-
-
-            <div class="space-y-2 text-sm">
-
-                <div class="flex justify-between">
-                    <span>السعر</span>
-                    <b>${p.price} TL</b>
-                </div>
-
-
-                <div class="flex justify-between">
-                    <span>التقييم</span>
-                    <b>${p.rating || "غير متاح"}</b>
-                </div>
-
-
-                <div class="flex justify-between">
-                    <span>المراجعات</span>
-                    <b>${p.review_count || "غير متاح"}</b>
-                </div>
-
-
-                <div class="flex justify-between">
-                    <span>Opportunity</span>
-                    <b>${p.opportunity_score}/100</b>
-                </div>
-
-            </div>
-
-
-            <div class="mt-5">
-                ${directLink}
-            </div>
-
-        `;
-
-
-        box.appendChild(div);
-
-    });
-
+function showError(x){
+  const e=document.getElementById("error");
+  e.textContent=x;e.classList.remove("hidden");
 }
-
-
-
-function escapeHtml(text) {
-
-    return String(text || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-
-}
-
-
-
-function renderCharts(products, stats) {
-
-    if (chart1)
-        chart1.destroy();
-
-    if (chart2)
-        chart2.destroy();
-
-
-    chart1 = new Chart(
-        document.getElementById("priceChart"),
-        {
-
-            type: "bar",
-
-            data: {
-
-                labels:
-                    products.map(
-                        (_, i) =>
-                            "منتج " + (i + 1)
-                    ),
-
-                datasets: [{
-
-                    label: "السعر TL",
-
-                    data:
-                        products.map(
-                            p => p.price
-                        )
-
-                }]
-
-            },
-
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-
-        }
-    );
-
-
-    chart2 = new Chart(
-        document.getElementById("scoreChart"),
-        {
-
-            type: "radar",
-
-            data: {
-
-                labels: [
-                    "السعر",
-                    "SEO",
-                    "التقييم",
-                    "المراجعات",
-                    "الفرصة"
-                ],
-
-                datasets: [{
-
-                    label:
-                        "Store Intelligence",
-
-                    data: [
-
-                        stats.price_score,
-
-                        stats.seo_score,
-
-                        stats.rating_score,
-
-                        stats.review_score,
-
-                        stats.opportunity_score
-
-                    ]
-
-                }]
-
-            },
-
-            options: {
-
-                responsive: true,
-
-                maintainAspectRatio: false,
-
-                scales: {
-
-                    r: {
-                        beginAtZero: true,
-                        max: 100
-                    }
-
-                }
-
-            }
-
-        }
-    );
-
-}
-
-
-
-function downloadPDF() {
-
-    html2pdf()
-        .from(
-            document.getElementById("report")
-        )
-        .set({
-
-            margin: 10,
-
-            filename:
-                "ActiveOnline-Trendyol-Report.pdf",
-
-            html2canvas: {
-                scale: 2
-            },
-
-            jsPDF: {
-                unit: "mm",
-                format: "a4",
-                orientation: "portrait"
-            }
-
-        })
-        .save();
-
-}
-
+function hideError(){document.getElementById("error").classList.add("hidden");}
 </script>
-
 </body>
 </html>
 """
 
-
-# =========================================================
-# TRENDYOL FUNCTIONS
-# =========================================================
-
 def fetch_trendyol(url):
-
     try:
-
-        response = requests.get(
+        r = requests.get(
             url,
             headers=HEADERS,
             timeout=TIMEOUT,
             allow_redirects=True
         )
+    except requests.RequestException as e:
+        raise RuntimeError("تعذر الاتصال بـ Trendyol: " + str(e))
 
-    except requests.exceptions.RequestException as e:
+    if r.status_code == 403:
+        raise PermissionError("Trendyol returned HTTP 403")
+    if r.status_code == 429:
+        raise RuntimeError("Trendyol returned HTTP 429")
+    if r.status_code >= 400:
+        raise RuntimeError(f"Trendyol HTTP {r.status_code}")
 
-        raise Exception(
-            "تعذر الاتصال بـ Trendyol: "
-            + str(e)
-        )
+    return r.text
 
-
-    if response.status_code == 403:
-
-        raise PermissionError(
-            "Trendyol returned HTTP 403"
-        )
-
-
-    if response.status_code == 429:
-
-        raise Exception(
-            "Trendyol طلب الانتظار بسبب كثرة الطلبات."
-        )
-
-
-    if response.status_code >= 400:
-
-        raise Exception(
-            f"Trendyol HTTP {response.status_code}"
-        )
-
-
-    return response.text
-
-
-
-def product_url(url):
-
+def direct_product_url(url):
     if not url:
         return None
-
-
-    absolute =
-        urljoin(
-            "https://www.trendyol.com",
-            url
-        )
-
-
-    parsed =
-        urlparse(absolute)
-
-
-    if "trendyol.com" not in parsed.netloc:
+    absolute = urljoin("https://www.trendyol.com", url)
+    parsed = urlparse(absolute)
+    if "trendyol.com" not in parsed.netloc.lower():
         return None
-
-
-    match =
-        re.search(
-            r"-p-(\d+)",
-            parsed.path.lower()
-        )
-
-
-    if not match:
+    if not re.search(r"-p-\d+", parsed.path.lower()):
         return None
+    return "https://www.trendyol.com" + parsed.path
 
-
-    return (
-        "https://www.trendyol.com"
-        + parsed.path
-    )
-
-
-
-def product_id(url):
-
-    if not url:
-        return None
-
-
-    match =
-        re.search(
-            r"-p-(\d+)",
-            url
-        )
-
-
-    return (
-        match.group(1)
-        if match
-        else None
-    )
-
-
+def get_product_id(url):
+    m = re.search(r"-p-(\d+)", url or "", re.I)
+    return m.group(1) if m else None
 
 def parse_price(text):
-
     if not text:
         return 0
-
-
-    matches =
-        re.findall(
-            r"\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?",
-            text
-        )
-
-
-    values = []
-
-
-    for x in matches:
-
+    patterns = re.findall(r"\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?", text)
+    for x in patterns:
         try:
-
-            x =
-                x.replace(
-                    ".",
-                    ""
-                ).replace(
-                    ",",
-                    "."
-                )
-
-
-            n = float(x)
-
-
+            n = float(x.replace(".", "").replace(",", "."))
             if 1 <= n <= 1000000:
-
-                values.append(n)
-
-        except:
+                return round(n, 2)
+        except ValueError:
             pass
-
-
-    return (
-        round(values[0], 2)
-        if values
-        else 0
-    )
-
-
+    return 0
 
 def parse_rating(text):
-
     if not text:
         return None
-
-
-    matches =
-        re.findall(
-            r"[0-5](?:[.,]\d+)?",
-            text
-        )
-
-
-    for x in matches:
-
+    for x in re.findall(r"\d(?:[.,]\d+)?", text):
         try:
-
-            n =
-                float(
-                    x.replace(",", ".")
-                )
-
-
+            n = float(x.replace(",", "."))
             if 0 <= n <= 5:
-
                 return n
-
-        except:
+        except ValueError:
             pass
-
-
     return None
 
-
-
 def parse_reviews(text):
-
     if not text:
         return None
-
-
-    numbers =
-        re.findall(
-            r"\d[\d.]*",
-            text
-        )
-
-
-    values = []
-
-
-    for x in numbers:
-
+    nums = []
+    for x in re.findall(r"\d[\d.]*", text):
         try:
-
-            n =
-                int(
-                    x.replace(".", "")
-                )
-
+            n = int(x.replace(".", ""))
             if n > 0:
-                values.append(n)
-
-        except:
+                nums.append(n)
+        except ValueError:
             pass
-
-
-    return (
-        max(values)
-        if values
-        else None
-    )
-
-
-
-# =========================================================
-# EXTRACT PRODUCTS
-# =========================================================
+    return max(nums) if nums else None
 
 def extract_products(html):
-
-    soup =
-        BeautifulSoup(
-            html,
-            "html.parser"
-        )
-
-
+    soup = BeautifulSoup(html, "html.parser")
     products = []
-
     seen = set()
 
-
-    for a in soup.find_all(
-        "a",
-        href=True
-    ):
-
-        url =
-            product_url(
-                a.get("href")
-            )
-
-
+    for a in soup.find_all("a", href=True):
+        url = direct_product_url(a.get("href"))
         if not url:
             continue
 
-
-        pid =
-            product_id(url)
-
-
-        if not pid:
+        pid = get_product_id(url)
+        if not pid or pid in seen:
             continue
-
-
-        if pid in seen:
-            continue
-
-
         seen.add(pid)
 
+        title = (
+            a.get("title")
+            or a.get("aria-label")
+            or a.get_text(" ", strip=True)
+            or f"Trendyol Product {pid}"
+        )
 
-        title =
-            a.get("title") or \
-            a.get("aria-label") or \
-            a.get_text(
-                " ",
-                strip=True
-            )
-
-
-        img =
-            a.find("img")
-
-
+        img = a.find("img")
         image = ""
-
-
         if img:
-
-            image =
-                img.get("src") or \
-                img.get("data-src") or \
-                ""
-
-
+            image = img.get("src") or img.get("data-src") or ""
             if image.startswith("//"):
+                image = "https:" + image
 
-                image =
-                    "https:" + image
-
-
-        parent =
-            a.parent
-
-
-        text =
-            parent.get_text(
-                " ",
-                strip=True
-            ) if parent else ""
-
+        parent = a.parent
+        text = parent.get_text(" ", strip=True) if parent else ""
 
         products.append({
-
             "id": pid,
-
-            "title":
-                title[:250] or
-                "Trendyol Product " + pid,
-
-            "price":
-                parse_price(text),
-
-            "rating":
-                parse_rating(text),
-
-            "review_count":
-                parse_reviews(text),
-
-            "image":
-                image,
-
-            "url":
-                url,
-
-            "is_direct_product":
-                True
-
+            "title": title[:250],
+            "price": parse_price(text),
+            "rating": parse_rating(text),
+            "review_count": parse_reviews(text),
+            "image": image,
+            "url": url,
+            "is_direct_product": True
         })
-
 
         if len(products) >= MAX_PRODUCTS:
             break
 
-
     return products
-
-
-
-# =========================================================
-# MANUAL URL MODE
-# =========================================================
-
-def products_from_urls(urls):
-
-    products = []
-
-
-    for url in urls:
-
-        clean =
-            product_url(url)
-
-
-        if not clean:
-            continue
-
-
-        pid =
-            product_id(clean)
-
-
-        products.append({
-
-            "id": pid,
-
-            "title":
-                "Trendyol Product " + pid,
-
-            "price": 0,
-
-            "rating": None,
-
-            "review_count": None,
-
-            "image": "",
-
-            "url": clean,
-
-            "is_direct_product": True,
-
-            "opportunity_score": 50
-
-        })
-
-
-    return products
-
-
-
-# =========================================================
-# SCORING
-# =========================================================
 
 def score_products(products):
+    prices = [p["price"] for p in products if p["price"] > 0]
+    avg = statistics.mean(prices) if prices else 0
+    spread = statistics.pstdev(prices) if len(prices) > 1 else 0
 
-    prices = [
-        p["price"]
-        for p in products
-        if p["price"] > 0
-    ]
+    price_score = 50
+    if avg:
+        price_score = max(0, min(100, round(70 - (spread / avg) * 60)))
 
-
-    if prices:
-
-        avg =
-            statistics.mean(prices)
-
-        spread =
-            statistics.pstdev(prices)
-
-        price_score =
-            max(
-                0,
-                min(
-                    100,
-                    round(
-                        70 -
-                        ((spread / avg) * 60)
-                    )
-                )
-            )
-
-    else:
-
-        price_score = 50
-
-
-    seo_scores = []
-
-
+    seo_values = []
     for p in products:
+        s = 50
+        if 30 <= len(p["title"]) <= 120:
+            s += 25
+        if len(p["title"].split()) >= 5:
+            s += 15
+        seo_values.append(min(100, s))
+    seo_score = round(statistics.mean(seo_values)) if seo_values else 50
 
-        title =
-            p["title"]
+    ratings = [p["rating"] for p in products if p["rating"] is not None]
+    rating_score = round(statistics.mean(ratings) / 5 * 100) if ratings else 50
 
+    reviews = [p["review_count"] for p in products if p["review_count"]]
+    review_score = 50
+    if reviews:
+        review_score = min(100, round(30 + (statistics.mean(reviews) ** 0.5) * 8))
 
-        score = 50
-
-
-        if 30 <= len(title) <= 120:
-            score += 25
-
-
-        if len(title.split()) >= 5:
-            score += 15
-
-
-        seo_scores.append(
-            min(100, score)
-        )
-
-
-    seo_score =
-        round(
-            statistics.mean(
-                seo_scores
-            )
-        ) if seo_scores else 50
-
-
-    ratings = [
-        p["rating"]
-        for p in products
-        if p["rating"] is not None
-    ]
-
-
-    rating_score = (
-        round(
-            statistics.mean(ratings)
-            / 5 * 100
-        )
-        if ratings
-        else 50
+    opportunity = round(
+        price_score * 0.25 +
+        seo_score * 0.25 +
+        rating_score * 0.20 +
+        review_score * 0.30
     )
 
-
-    reviews = [
-        p["review_count"]
-        for p in products
-        if p["review_count"]
-    ]
-
-
-    review_score = 50
-
-
-    if reviews:
-
-        review_score =
-            min(
-                100,
-                round(
-                    30 +
-                    (statistics.mean(reviews) ** .5) * 8
-                )
-            )
-
-
-    opportunity =
-        round(
-
-            price_score * .25 +
-
-            seo_score * .25 +
-
-            rating_score * .20 +
-
-            review_score * .30
-
-        )
-
-
     for p in products:
-
-        ps = 50
-
-
+        s = 50
         if p["price"] > 0:
-            ps += 10
-
-
+            s += 10
         if len(p["title"]) >= 40:
-            ps += 10
-
-
-        if p["rating"]:
-
+            s += 10
+        if p["rating"] is not None:
             if p["rating"] >= 4.5:
-                ps += 15
-
+                s += 15
             elif p["rating"] >= 4:
-                ps += 8
-
-
+                s += 8
         if p["review_count"]:
-
             if p["review_count"] >= 1000:
-                ps += 15
-
+                s += 15
             elif p["review_count"] >= 100:
-                ps += 10
-
+                s += 10
             elif p["review_count"] >= 20:
-                ps += 5
-
-
-        p["opportunity_score"] =
-            min(100, ps)
-
+                s += 5
+        p["opportunity_score"] = min(100, s)
 
     return {
-
-        "products_collected":
-            len(products),
-
-        "min_price":
-            round(min(prices), 2)
-            if prices else 0,
-
-        "max_price":
-            round(max(prices), 2)
-            if prices else 0,
-
-        "average_price":
-            round(
-                statistics.mean(prices),
-                2
-            ) if prices else 0,
-
-        "price_score":
-            price_score,
-
-        "seo_score":
-            seo_score,
-
-        "rating_score":
-            rating_score,
-
-        "review_score":
-            review_score,
-
-        "opportunity_score":
-            opportunity
-
+        "products_collected": len(products),
+        "min_price": round(min(prices), 2) if prices else 0,
+        "max_price": round(max(prices), 2) if prices else 0,
+        "average_price": round(avg, 2) if avg else 0,
+        "price_score": price_score,
+        "seo_score": seo_score,
+        "rating_score": rating_score,
+        "review_score": review_score,
+        "opportunity_score": opportunity
     }
 
-
-
-# =========================================================
-# REPORT
-# =========================================================
-
-def make_report(
-    store,
-    category,
-    budget,
-    products,
-    stats
-):
-
-    top =
-        sorted(
-            products,
-            key=lambda x:
-                x["opportunity_score"],
-            reverse=True
-        )[:5]
-
+def make_report(store, category, budget, products, stats):
+    top = sorted(
+        products,
+        key=lambda x: x.get("opportunity_score", 0),
+        reverse=True
+    )[:5]
 
     top_text = ""
-
-
-    for i, p in enumerate(
-        top,
-        1
-    ):
-
+    for i, p in enumerate(top, 1):
         top_text += (
             f"{i}. {p['title']}\n"
-            f"   السعر: {p['price']} TL\n"
-            f"   Opportunity Score: "
-            f"{p['opportunity_score']}/100\n"
-            f"   الرابط المباشر: {p['url']}\n\n"
+            f"السعر: {p['price']} TL\n"
+            f"Opportunity: {p['opportunity_score']}/100\n"
+            f"الرابط المباشر: {p['url']}\n\n"
         )
 
-
-    revenue_2 =
-        budget * 2
-
-    revenue_3 =
-        budget * 3
-
-    revenue_4 =
-        budget * 4
-
-
     return f"""
+📊 التقرير الاستخباراتي الشامل — Active Online
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 ACTIVE ONLINE
-TRENDYOL INTELLIGENCE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+المتجر: {store}
+الفئة: {category}
+عدد المنتجات المحللة: {stats['products_collected']}
 
-🏪 المتجر:
-{store}
+1. تحليل الأسعار
+متوسط السعر: {stats['average_price']} TL
+أقل سعر: {stats['min_price']} TL
+أعلى سعر: {stats['max_price']} TL
+Price Score: {stats['price_score']}/100
 
-📂 الفئة:
-{category}
-
-📦 عدد المنتجات المحللة:
-{stats['products_collected']}
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. الملخص التنفيذي
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-متوسط السعر:
-{stats['average_price']} TL
-
-أقل سعر:
-{stats['min_price']} TL
-
-أعلى سعر:
-{stats['max_price']} TL
-
-Opportunity Score:
-{stats['opportunity_score']}/100
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2. تحليل الأسعار
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Price Score:
-{stats['price_score']}/100
-
-يتم تقييم هيكل الأسعار ومدى تنوع
-النطاق السعري للمنتجات.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-3. SEO
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-SEO Score:
-{stats['seo_score']}/100
-
+2. Trendyol SEO
+SEO Score: {stats['seo_score']}/100
 التوصيات:
-
-• وضع الكلمة المفتاحية الرئيسية في بداية العنوان.
+• وضع الكلمة المفتاحية الأساسية في بداية العنوان.
 • كتابة عناوين واضحة باللغة التركية.
-• استخدام كلمات تصف النوع والخامة والاستخدام.
-• تجنب تكرار الكلمات بلا قيمة.
+• إضافة كلمات تصف النوع والخامة والاستخدام.
+• تجنب حشو الكلمات.
 
+3. التقييمات والمراجعات
+Rating Score: {stats['rating_score']}/100
+Review Score: {stats['review_score']}/100
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-4. التقييمات والمراجعات
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. Opportunity
+Opportunity Score: {stats['opportunity_score']}/100
 
-Rating Score:
-{stats['rating_score']}/100
-
-Review Score:
-{stats['review_score']}/100
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 5. أفضل المنتجات
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 {top_text}
 
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-6. استراتيجية الإعلانات
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-الميزانية:
-{budget:,.2f} TL
-
+6. الإعلانات
+الميزانية المقترحة: {budget:,.2f} TL
 اقتراح مبدئي:
+Meta Ads: 40%
+Google Ads: 25%
+Trendyol Ads: 25%
+Retargeting: 10%
 
-Meta Ads:
-40%
+7. خطة 30 يوم
+الأسبوع 1: تحسين العناوين والصور والمنتجات.
+الأسبوع 2: اختبار الإعلانات.
+الأسبوع 3: إيقاف المنتجات الضعيفة وتوسيع المنتجات الأفضل.
+الأسبوع 4: مراجعة ROAS وتجهيز خطة الشهر التالي.
 
-Google:
-25%
-
-Trendyol Ads:
-25%
-
-Retargeting:
-10%
-
-
-ابدأ باختبار عدد محدود من المنتجات،
-ثم قم بزيادة الميزانية فقط للمنتجات
-التي تظهر نتائج فعلية.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-7. السيناريو المالي
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ تقديرات وليست مبيعات فعلية.
-
-ROAS 2x:
-{revenue_2:,.2f} TL
-
-ROAS 3x:
-{revenue_3:,.2f} TL
-
-ROAS 4x:
-{revenue_4:,.2f} TL
-
-
-لا يتم اعتبار هذه الأرقام توقعاً مضموناً.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-8. خطة 30 يوم
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-الأسبوع 1:
-تحسين المنتجات والعناوين والصور.
-
-الأسبوع 2:
-اختبار الإعلانات.
-
-الأسبوع 3:
-إيقاف المنتجات الضعيفة
-وزيادة المنتجات الرابحة.
-
-الأسبوع 4:
-تحليل النتائج وبناء خطة الشهر التالي.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-9. أهم التوصيات
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-• التركيز على المنتجات ذات Opportunity Score مرتفع.
-• تحسين SEO.
-• تحسين الصور.
-• اختبار عروض وأسعار مختلفة.
-• عدم الاعتماد على منتج واحد.
-• مراقبة المنافسين باستمرار.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Active Online
-Trendyol Intelligence
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ الأرقام التقديرية ليست ضماناً للمبيعات.
 """
 
+def products_from_urls(urls):
+    products = []
+    seen = set()
 
-# =========================================================
-# ROUTES
-# =========================================================
+    for raw in urls:
+        url = direct_product_url(raw)
+        if not url:
+            continue
+        pid = get_product_id(url)
+        if not pid or pid in seen:
+            continue
+        seen.add(pid)
+        products.append({
+            "id": pid,
+            "title": f"Trendyol Product {pid}",
+            "price": 0,
+            "rating": None,
+            "review_count": None,
+            "image": "",
+            "url": url,
+            "is_direct_product": True,
+            "opportunity_score": 50
+        })
+
+    return products
 
 @app.route("/")
 def home():
+    return render_template_string(HTML)
 
-    return render_template_string(
-        HTML
-    )
-
-
-
-@app.route(
-    "/api/analyze",
-    methods=["POST"]
-)
+@app.route("/api/analyze", methods=["POST"])
 def analyze():
-
-    data =
-        request.get_json(
-            silent=True
-        ) or {}
-
-
-    store =
-        str(
-            data.get(
-                "storeName",
-                "Trendyol Store"
-            )
-        )
-
-
-    category =
-        str(
-            data.get(
-                "category",
-                "عام"
-            )
-        )
-
-
-    budget =
-        float(
-            data.get(
-                "budget",
-                10000
-            )
-        )
-
-
-    url =
-        str(
-            data.get(
-                "url",
-                ""
-            )
-        ).strip()
-
-
-    if not url:
-
-        return jsonify({
-            "error":
-                "أدخل رابط Trendyol"
-        }), 400
-
+    data = request.get_json(silent=True) or {}
+    url = str(data.get("url", "")).strip()
+    store = str(data.get("storeName", "Trendyol Store"))
+    category = str(data.get("category", "عام"))
 
     try:
+        budget = float(data.get("budget", 10000))
+    except (TypeError, ValueError):
+        budget = 10000
 
-        html =
-            fetch_trendyol(
-                url
-            )
+    if not url:
+        return jsonify({"error": "أدخل رابط Trendyol"}), 400
 
-
+    try:
+        html = fetch_trendyol(url)
     except PermissionError:
-
         return jsonify({
-
-            "type":
-                "TRENDYOL_403",
-
-            "error":
-                "Trendyol رفض الاتصال من Render."
-
+            "type": "TRENDYOL_403",
+            "error": "Trendyol رفض اتصال Render بـ HTTP 403."
         }), 403
-
-
     except Exception as e:
+        return jsonify({"error": str(e)}), 502
 
-        return jsonify({
-            "error":
-                str(e)
-        }), 502
-
-
-    products =
-        extract_products(
-            html
-        )
-
-
+    products = extract_products(html)
     if not products:
-
         return jsonify({
-
-            "error":
-                "لم نجد منتجات Product URLs حقيقية داخل الصفحة."
-
+            "error": "لم نجد روابط منتجات مباشرة داخل الصفحة."
         }), 422
 
-
-    stats =
-        score_products(
-            products
-        )
-
-
-    report =
-        make_report(
-            store,
-            category,
-            budget,
-            products,
-            stats
-        )
-
+    stats = score_products(products)
+    report = make_report(store, category, budget, products, stats)
 
     return jsonify({
-
-        "status":
-            "success",
-
-        "store_info": {
-
-            "store_name":
-                store,
-
-            "url":
-                url
-
-        },
-
-        "statistics":
-            stats,
-
-        "products":
-            products,
-
-        "report":
-            report
-
+        "status": "success",
+        "store_info": {"store_name": store, "url": url},
+        "statistics": stats,
+        "products": products,
+        "report": report
     })
 
-
-
-@app.route(
-    "/api/manual",
-    methods=["POST"]
-)
+@app.route("/api/manual", methods=["POST"])
 def manual():
+    data = request.get_json(silent=True) or {}
+    store = str(data.get("storeName", "Trendyol Store"))
+    category = str(data.get("category", "عام"))
 
-    data =
-        request.get_json(
-            silent=True
-        ) or {}
+    try:
+        budget = float(data.get("budget", 10000))
+    except (TypeError, ValueError):
+        budget = 10000
 
-
-    store =
-        str(
-            data.get(
-                "storeName",
-                "Trendyol Store"
-            )
-        )
-
-
-    category =
-        str(
-            data.get(
-                "category",
-                "عام"
-            )
-        )
-
-
-    budget =
-        float(
-            data.get(
-                "budget",
-                10000
-            )
-        )
-
-
-    urls =
-        data.get(
-            "urls",
-            []
-        )
-
-
-    products =
-        products_from_urls(
-            urls
-        )
-
-
+    products = products_from_urls(data.get("urls", []))
     if not products:
-
         return jsonify({
-
-            "error":
-                "لم يتم العثور على روابط منتجات صحيحة. "
-                "يجب أن يحتوي الرابط على -p-رقم."
-
+            "error": "لا توجد روابط منتجات صحيحة. يجب أن يحتوي الرابط على -p-رقم."
         }), 422
 
-
-    stats =
-        score_products(
-            products
-        )
-
-
-    report =
-        make_report(
-            store,
-            category,
-            budget,
-            products,
-            stats
-        )
-
+    stats = score_products(products)
+    report = make_report(store, category, budget, products, stats)
 
     return jsonify({
-
-        "status":
-            "success",
-
-        "store_info": {
-
-            "store_name":
-                store
-
-        },
-
-        "statistics":
-            stats,
-
-        "products":
-            products,
-
-        "report":
-            report
-
+        "status": "success",
+        "store_info": {"store_name": store},
+        "statistics": stats,
+        "products": products,
+        "report": report
     })
-
-
-# =========================================================
-# RUN
-# =========================================================
 
 if __name__ == "__main__":
-
-    app.run(
-        host="0.0.0.0",
-        port=5000,
-        debug=False
-    )
+    app.run(host="0.0.0.0", port=5000, debug=False)
