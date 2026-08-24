@@ -10,11 +10,6 @@ from bs4 import BeautifulSoup
 from flask import Flask, render_template_string, request, jsonify
 from dotenv import load_dotenv
 
-try:
-    from playwright.sync_api import sync_playwright
-except Exception:
-    sync_playwright = None
-
 load_dotenv()
 
 app = Flask(__name__)
@@ -23,16 +18,19 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
 MAX_PRODUCTS = int(os.getenv("MAX_PRODUCTS", "40"))
 MAX_PRODUCT_PAGES = int(os.getenv("MAX_PRODUCT_PAGES", "25"))
-MAX_COMPETITOR_SEARCHES = int(os.getenv("MAX_COMPETITOR_SEARCHES", "6"))
 
 SESSION = requests.Session()
 SESSION.headers.update({
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/151.0 Safari/537.36"
+        "Chrome/120.0.0.0 Safari/537.36"
     ),
-    "Accept-Language": "tr-TR,tr;q=0.9,en;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
 })
 
 HTML_TEMPLATE = """
@@ -68,7 +66,7 @@ HTML_TEMPLATE = """
                     بدء التحليل الشامل
                 </button>
             </div>
-            <div id="loading" class="mt-4 hidden text-blue-600 font-medium text-center">جاري سحب بيانات المنتجات عبر المتصفح السحابي، جلب روابط وأسعار المنافسين، وتوليد التقرير الاستخباراتي... يرجى الانتظار</div>
+            <div id="loading" class="mt-4 hidden text-blue-600 font-medium text-center">جاري سحب بيانات المنتجات، جلب روابط وأسعار المنافسين، وتوليد التقرير الاستخباراتي... يرجى الانتظار</div>
         </div>
 
         <div id="resultContainer" class="hidden space-y-8">
@@ -404,7 +402,7 @@ def parse_product_html(url, html):
 
     return data
 
-def fetch_competitors_via_browser(page, product_title):
+def fetch_competitors(product_title):
     if not product_title:
         return None, None, None, None
     words = re.findall(r"[A-Za-zÇĞİÖŞÜçğıöşü0-9]+", product_title)
@@ -413,9 +411,10 @@ def fetch_competitors_via_browser(page, product_title):
         return None, None, None, None
     search_url = "https://www.trendyol.com/sr?q=" + quote_plus(q)
     try:
-        page.goto(search_url, wait_until="domcontentloaded", timeout=20000)
-        page.wait_for_timeout(1500)
-        soup = BeautifulSoup(page.content(), "html.parser")
+        r = SESSION.get(search_url, timeout=15)
+        if r.status_code != 200:
+            return None, None, None, None
+        soup = BeautifulSoup(r.text, "html.parser")
         competitors = []
         for a in soup.find_all("a", href=True):
             href = urljoin(search_url, a["href"])
@@ -446,68 +445,41 @@ def fetch_competitors_via_browser(page, product_title):
         return None, None, None, None
 
 def collect_store_data(url, max_products=MAX_PRODUCTS):
-    if sync_playwright is None:
-        raise RuntimeError("Playwright غير مثبت")
+    r = SESSION.get(url, timeout=20)
+    if r.status_code != 200:
+        raise RuntimeError(f"فشل في الوصول للمتجر (رمز الاستجابة: {r.status_code})")
+    
+    store_html = r.text
+    final_url = r.url
+    store_info = parse_store_page(final_url, store_html)
 
-    store_html = ""
     product_urls = []
-    final_url = url
+    soup = BeautifulSoup(store_html, "html.parser")
+    for a in soup.find_all("a", href=True):
+        href = urljoin(final_url, a["href"])
+        if "trendyol.com" in href and re.search(r"[-/]p-\d+", href, re.I):
+            clean = href.split("?")[0]
+            if clean not in product_urls:
+                product_urls.append(clean)
+        if len(product_urls) >= max_products:
+            break
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(
-            headless=True,
-            args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-        )
-        page = browser.new_page(
-            user_agent=SESSION.headers["User-Agent"],
-            locale="tr-TR",
-            viewport={"width": 1440, "height": 1000},
-        )
+    products = []
+    for product_url in product_urls[:MAX_PRODUCT_PAGES]:
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=45000)
-            page.wait_for_timeout(3000)
-            final_url = page.url
-            for _ in range(5):
-                page.mouse.wheel(0, 2000)
-                page.wait_for_timeout(1000)
-            store_html = page.content()
-
-            links = page.locator("a").evaluate_all(
-                """els => els.map(a => ({href:a.href}))"""
-            )
-            seen = set()
-            for item in links:
-                href = item.get("href") if isinstance(item, dict) else None
-                if not href or "trendyol.com" not in href:
-                    continue
-                if re.search(r"[-/]p-\d+", href, re.I):
-                    clean = href.split("?")[0]
-                    if clean not in seen:
-                        seen.add(clean)
-                        product_urls.append(clean)
-                if len(product_urls) >= max_products:
-                    break
-
-            store_info = parse_store_page(final_url, store_html)
-            products = []
-
-            for product_url in product_urls[:MAX_PRODUCT_PAGES]:
-                try:
-                    page.goto(product_url, wait_until="domcontentloaded", timeout=30000)
-                    page.wait_for_timeout(1000)
-                    p_data = parse_product_html(product_url, page.content())
-                    if p_data.get("title"):
-                        c1_u, c1_p, c2_u, c2_p = fetch_competitors_via_browser(page, p_data["title"])
-                        p_data["competitor_1_url"] = c1_u
-                        p_data["competitor_1_price"] = c1_p
-                        p_data["competitor_2_url"] = c2_u
-                        p_data["competitor_2_price"] = c2_p
-                    products.append(p_data)
-                except Exception:
-                    continue
-
-        finally:
-            browser.close()
+            pr = SESSION.get(product_url, timeout=15)
+            if pr.status_code == 200:
+                p_data = parse_product_html(product_url, pr.text)
+                if p_data.get("title"):
+                    c1_u, c1_p, c2_u, c2_p = fetch_competitors(p_data["title"])
+                    p_data["competitor_1_url"] = c1_u
+                    p_data["competitor_1_price"] = c1_p
+                    p_data["competitor_2_url"] = c2_u
+                    p_data["competitor_2_price"] = c2_p
+                products.append(p_data)
+            time.sleep(0.3)
+        except Exception:
+            continue
 
     return store_info, products
 
@@ -576,9 +548,6 @@ def calculate_stats(products):
         "average_discount_pct": round(statistics.mean(discounts), 2) if discounts else None,
     }
 
-def build_local_competitor_candidates(products):
-    return []
-
 def make_ai_report(payload):
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY غير موجود في ملف .env")
@@ -587,7 +556,7 @@ def make_ai_report(payload):
     
     system = """
 أنت Active Online Intelligence، محلل تجارة إلكترونية محترف متخصص في Trendyol.
-مهمتك تحليل البيانات التي جمعها النظام بدقة واحترافية عالية باللغة العربية.
+مهمتك تحليل البيانات التي جمعها النظام بدقة واحرافية عالية باللغة العربية.
 """
 
     prompt = f"""
@@ -631,13 +600,11 @@ def analyze(url):
 
     store_info, products = collect_store_data(resolved)
     stats = calculate_stats(products)
-    competitor_candidates = build_local_competitor_candidates(products)
 
     payload = {
         "store": store_info,
         "statistics": stats,
         "products": products,
-        "competitor_candidates": competitor_candidates,
         "meta": {
             "resolved_url": resolved,
             "collection_time_seconds": round(time.time() - started, 2),
@@ -653,7 +620,7 @@ def analyze(url):
         "store_info": store_info,
         "statistics": stats,
         "products": products,
-        "competitors": competitor_candidates,
+        "competitors": [],
         "report": report,
         "meta": payload["meta"],
     }
@@ -678,8 +645,11 @@ def api_analyze():
     except Exception as exc:
         return jsonify({
             "error": str(exc),
-            "hint": "تأكد من صحة GEMINI_API_KEY في ملف .env."
+            "hint": "تأكد من صحة GEMINI_API_KEY وجاهزية السيرفر."
         }), 500
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
