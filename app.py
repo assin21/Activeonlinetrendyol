@@ -16,13 +16,14 @@ app = Flask(__name__)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
-MAX_PRODUCTS = int(os.getenv("MAX_PRODUCTS", "40"))
-MAX_PRODUCT_PAGES = int(os.getenv("MAX_PRODUCT_PAGES", "25"))
+MAX_PRODUCTS = int(os.getenv("MAX_PRODUCTS", "30"))
+MAX_PRODUCT_PAGES = int(os.getenv("MAX_PRODUCT_PAGES", "20"))
 
 SESSION = requests.Session()
 SESSION.headers.update({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
     "Accept": "application/json, text/plain, */*",
+    "Origin": "https://www.trendyol.com",
     "Referer": "https://www.trendyol.com/",
 })
 
@@ -191,7 +192,7 @@ HTML_TEMPLATE = """
             } catch (err) {
                 loading.classList.add('hidden');
                 btn.disabled = false;
-                alert('حدث خطأ في الاتصال بالسيرفر');
+                alert('حدث خطأ في الاتصال بالسيرفر أو انتهت مهلة الطلب');
             }
         }
 
@@ -257,7 +258,7 @@ def fetch_via_api(merchant_id):
         "Referer": f"https://www.trendyol.com/butik/liste/-m-{merchant_id}"
     }
     try:
-        r = requests.get(api_url, headers=headers, timeout=15)
+        r = requests.get(api_url, headers=headers, timeout=20)
         if r.status_code == 200:
             data = r.json()
             return data.get("result", {}).get("products", [])
@@ -269,8 +270,8 @@ def fetch_competitors(product_title):
     if not product_title:
         return None, None, None, None
     words = re.findall(r"[A-Za-zÇĞİÖŞÜçğıöşü0-9]+", product_title)
-    q = " ".join(words[:5])
-    if len(q) < 4:
+    q = " ".join(words[:4])
+    if len(q) < 3:
         return None, None, None, None
     search_url = f"https://apigw.trendyol.com/discovery-web-searchgw-service/v2/api/search?q={quote_plus(q)}&pi=1"
     headers = {
@@ -280,7 +281,7 @@ def fetch_competitors(product_title):
         "Referer": "https://www.trendyol.com/"
     }
     try:
-        r = requests.get(search_url, headers=headers, timeout=10)
+        r = requests.get(search_url, headers=headers, timeout=8)
         if r.status_code == 200:
             items = r.json().get("result", {}).get("products", [])
             comps = []
@@ -329,6 +330,7 @@ def collect_store_data(url):
             "competitor_2_url": c2_u,
             "competitor_2_price": c2_p,
         })
+        time.sleep(0.1)
 
     store_info = {
         "store_name": raw_products[0].get("merchantName", "Trendyol Store") if raw_products else "Store",
@@ -415,7 +417,7 @@ def home():
 
 @app.route("/api/analyze", methods=["POST"])
 def api_analyze():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=Time if False else True) or {}
     url = clean_text(data.get("url"))
     if not url:
         return jsonify({"error": "الرابط مطلوب"}), 400
