@@ -15,14 +15,14 @@ app = Flask(__name__)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
-MAX_PRODUCTS = 24  # عدد مثالي لتوليد رسوم بيانية غنية ودقيقة بدون بطء
+MAX_PRODUCTS = 24  # عدد ممتاز لجلب عينة دقيقة وغنية بالبيانات للرسوم البيانية
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Active Online — Advanced Trendyol Intelligence</title>
+    <title>Active Online — Advanced Trendyol Intelligence Suite</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -51,7 +51,7 @@ HTML_TEMPLATE = """
                 </button>
             </div>
             <div id="loading" class="mt-6 hidden text-blue-600 font-semibold text-center text-lg animate-pulse">
-                ⏳ جاري سحب المنتجات، بناء الرسوم البيانية الإحصائية، وصياغة الخطة التسويقية المتقدمة بواسطة الذكاء الاصطناعي... يرجى الانتظار
+                ⏳ جاري سحب المنتجات، بناء الرسوم البيانية الاحترافية، وصياغة الخطة التسويقية الاستراتيجية بعمق (قد يستغرق ذلك دقيقة أو دقيقتين)... يرجى الانتظار
             </div>
         </div>
 
@@ -214,7 +214,6 @@ HTML_TEMPLATE = """
 
             const prices = products.map(p => p.price).filter(p => p !== null).sort((a,b) => a - b);
             
-            // 1. Price Range Bar Chart
             const ctx1 = document.getElementById('priceRangeChart').getContext('2d');
             chart1 = new Chart(ctx1, {
                 type: 'bar',
@@ -232,7 +231,6 @@ HTML_TEMPLATE = """
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // 2. Stats Comparison Chart
             const ctx2 = document.getElementById('priceStatsChart').getContext('2d');
             chart2 = new Chart(ctx2, {
                 type: 'line',
@@ -251,7 +249,6 @@ HTML_TEMPLATE = """
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // 3. Category Share Doughnut Chart
             let low = prices.filter(p => p < 500).length;
             let mid = prices.filter(p => p >= 500 && p <= 1500).length;
             let high = prices.filter(p => p > 1500).length;
@@ -269,7 +266,6 @@ HTML_TEMPLATE = """
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
-            // 4. Competitiveness Radar Chart
             const ctx4 = document.getElementById('competitivenessChart').getContext('2d');
             chart4 = new Chart(ctx4, {
                 type: 'radar',
@@ -315,7 +311,7 @@ def fetch_via_api(merchant_id):
         "Referer": f"https://www.trendyol.com/butik/liste/-m-{merchant_id}"
     }
     try:
-        r = requests.get(api_url, headers=headers, timeout=10)
+        r = requests.get(api_url, headers=headers, timeout=15)
         if r.status_code == 200:
             return r.json().get("result", {}).get("products", [])
     except Exception:
@@ -363,7 +359,7 @@ def make_ai_report(payload):
 
     gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     
-    system = "أنت مستشار تسويق رقمي محترف وخبير إستراتيجي في التجارة الإلكترونية وسوق ترينديول التركي."
+    system = "أنت مستشار تسويق رقمي محترف وخبير استراتيجي في التجارة الإلكترونية وسوق ترينديول التركي."
     prompt = f"""
 {system}
 قم بتحليل بيانات متجر ترينديول التالي لصياغة خطة تسويقية استراتيجية متكاملة واحترافية باللغة العربية:
@@ -379,7 +375,8 @@ DATA:
 5. خطة عمل تسويقية قابلة للتنفيذ للـ 30 يوماً القادمة
 """
     payload_body = {"contents": [{"parts": [{"text": prompt}]}]}
-    response = requests.post(gemini_url, json=payload_body, timeout=30)
+    # رفع مهلة الانتظار إلى 120 ثانية (دقيقتين)
+    response = requests.post(gemini_url, json=payload_body, timeout=120)
     if response.status_code == 200:
         return response.json()['candidates'][0]['content']['parts'][0]['text']
     else:
@@ -389,7 +386,7 @@ DATA:
 def home():
     return render_template_string(HTML_TEMPLATE)
 
-@app.route("/api/analyze", methods=["POST"])
+@app.route("/api/analyze", methods="/" if False else ["POST"])
 def api_analyze():
     data = request.get_json(silent=True) or {}
     url = clean_text(data.get("url"))
