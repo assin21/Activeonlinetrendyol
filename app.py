@@ -13,9 +13,9 @@ load_dotenv()
 
 app = Flask(__name__)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
-MAX_PRODUCTS = 24
+MAX_PRODUCTS = 16  # تقليل العدد قليلاً لضمان السرعة الفائقة واستجابة فورية
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -51,7 +51,7 @@ HTML_TEMPLATE = """
                 </button>
             </div>
             <div id="loading" class="mt-6 hidden text-blue-600 font-semibold text-center text-lg animate-pulse">
-                ⏳ جاري سحب المنتجات، بناء الرسوم البيانية الاحترافية، وصياغة الخطة التسويقية الاستراتيجية بعمق (قد يستغرق ذلك دقيقة أو دقيقتين)... يرجى الانتظار
+                ⏳ جاري سحب المنتجات، بناء الرسوم البيانية الاحترافية، وصياغة الخطة التسويقية الاستراتيجية... يرجى الانتظار ثوانٍ معدودة
             </div>
         </div>
 
@@ -152,9 +152,8 @@ HTML_TEMPLATE = """
             resultContainer.classList.add('hidden');
             btn.disabled = true;
             
-            // إعداد نظام مهلة انتظار بـ 120 ثانية كاملة لكي لا ينقطع الاتصال من جهة المتصفح
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 120000);
+            const timeoutId = setTimeout(() => controller.abort(), 90000);
 
             try {
                 const response = await fetch('/api/analyze', {
@@ -209,7 +208,7 @@ HTML_TEMPLATE = """
                 loading.classList.add('hidden');
                 btn.disabled = false;
                 if (err.name === 'AbortError') {
-                    alert('انتهت مهلة الانتظار (دقيقتين). استغرق الذكاء الاصطناعي وقتاً أطول من المعتاد، يجدر المحاولة مرة أخرى.');
+                    alert('انتهت مهلة الانتظار. يرجى المحاولة مرة أخرى.');
                 } else {
                     alert('حدث خطأ في الاتصال بالسيرفر');
                 }
@@ -321,7 +320,7 @@ def fetch_via_api(merchant_id):
         "Referer": f"https://www.trendyol.com/butik/liste/-m-{merchant_id}"
     }
     try:
-        r = requests.get(api_url, headers=headers, timeout=15)
+        r = requests.get(api_url, headers=headers, timeout=10)
         if r.status_code == 200:
             return r.json().get("result", {}).get("products", [])
     except Exception:
@@ -367,29 +366,35 @@ def make_ai_report(payload):
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY غير موجود")
 
-    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+    # استخدام نموذج سريع وخفيف لضمان الاستجابة الفورية بدون Timeout
+    model_name = "gemini-1.5-flash"
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
     
-    system = "أنت مستشار تسويق رقمي محترف وخبير استراتيجي في التجارة الإلكترونية وسوق ترينديول التركي."
+    compact_payload = {
+        "store": payload.get("store"),
+        "statistics": payload.get("statistics"),
+        "sample_products": [{"title": p["title"], "price": p["price"]} for p in payload.get("products", [])[:8]]
+    }
+
+    system = "أنت مستشار تسويق رقمي وخبير استراتيجي في التجارة الإلكترونية وسوق ترينديول."
     prompt = f"""
 {system}
-قم بتحليل بيانات متجر ترينديول التالي لصياغة خطة تسويقية استراتيجية متكاملة واحترافية باللغة العربية:
+حلل بيانات متجر ترينديول واكتب خطة تسويقية احترافية باللغة العربية تتضمن:
+1. الملخص التنفيذي وتحليل الأسعار
+2. إستراتيجية إعلانات الأداء (Meta & Google)
+3. رفع معدل التحويل (CRO) ومتوسط قيمة السلة (AOV)
+4. أفكار نمو وتسويق مبتكرة في تركيا
+5. خطة عمل لـ 30 يوماً
 
 DATA:
-{json.dumps(payload, ensure_ascii=False, indent=2)}
-
-أريد تقريراً استخباراتياً غنياً، تفصيلياً ومحترفاً يغطي الأقسام التالية:
-1. الملخص التنفيذي وتحليل هيكل الأسعار
-2. استراتيجية التسويق الرقمي وإعلانات الأداء المتقدمة (Meta & Google Performance Max)
-3. استراتيجيات رفع معدل التحويل (CRO) ومتوسط قيمة السلة (AOV)
-4. أفكار نمو مبتكرة (Growth Hacking & Influencer Marketing في تركيا)
-5. خطة عمل تسويقية قابلة للتنفيذ للـ 30 يوماً القادمة
+{json.dumps(compact_payload, ensure_ascii=False, indent=2)}
 """
     payload_body = {"contents": [{"parts": [{"text": prompt}]}]}
-    response = requests.post(gemini_url, json=payload_body, timeout=120)
+    response = requests.post(gemini_url, json=payload_body, timeout=45)
     if response.status_code == 200:
         return response.json()['candidates'][0]['content']['parts'][0]['text']
     else:
-        raise RuntimeError("خطأ في الاتصال بخادم الذكاء الاصطناعي")
+        raise RuntimeError(f"خطأ في الاتصال بخادم الذكاء الاصطناعي: {response.text}")
 
 @app.route("/")
 def home():
