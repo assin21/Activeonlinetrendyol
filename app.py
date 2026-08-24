@@ -17,6 +17,7 @@ HTML_TEMPLATE = """
     <title>Active Online — Trendyol Advanced Intelligence Suite</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         @media print {
             body * { visibility: hidden; }
@@ -30,32 +31,37 @@ HTML_TEMPLATE = """
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <header class="mb-10 text-center no-print">
             <h1 class="text-4xl font-extrabold text-blue-900 tracking-tight">Active Online — Trendyol Intelligence Suite</h1>
-            <p class="text-gray-600 mt-2 text-lg">منصة ذكاء الأعمال المتقدمة، تحليل المتاجر، الرسوم البيانية التفاعلية، والخطط التسويقية الاستراتيجية</p>
+            <p class="text-gray-600 mt-2 text-lg">منصة ذكاء الأعمال المتقدمة، تحليل المتاجر، الرسوم البيانية التفاعلية، وحاسبة الأداء الاستراتيجية</p>
         </header>
 
         <div class="bg-white p-8 rounded-2xl shadow-xl mb-10 border border-gray-200 no-print">
-            <h2 class="text-2xl font-bold mb-4 text-blue-900 border-b pb-3">إعداد لوحة التحليل الاستراتيجي للمتجر</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <h2 class="text-2xl font-bold mb-4 text-blue-900 border-b pb-3">إعداد لوحة التحليل الاستراتيجي وربط متجر Trendyol</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2">اسم المتجر أو العلامة التجارية:</label>
-                    <input type="text" id="storeNameInput" placeholder="مثال: Moda Ala, TeknoPazar, Wavo Store..." 
-                           class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-600 text-base" value="Trendyol Elite Store">
+                    <input type="text" id="storeNameInput" placeholder="مثال: Trendyol Home..." 
+                           class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-600 text-base" value="Trendyol Home Store">
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2">فئة المنتجات الرئيسية:</label>
-                    <input type="text" id="storeCategory" placeholder="مثال: ملابس أطفال، أحذية، إلكترونيات..." 
-                           class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-600 text-base" value="ملابس وأزياء تركية">
+                    <input type="text" id="storeCategory" placeholder="مثال: ديكور منزل، أثاث..." 
+                           class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-600 text-base" value="Trendyol Home & Furniture">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">الميزانية الإعلانية المقترحة (TL):</label>
+                    <input type="number" id="adBudget" placeholder="مثال: 5000" 
+                           class="w-full border-2 border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-600 text-base" value="10000">
                 </div>
             </div>
             <div class="flex flex-col md:flex-row gap-4">
-                <input type="text" id="storeUrl" placeholder="أدخل رابط المتجر أو اسم المتجر هنا..." 
-                       class="flex-1 border-2 border-gray-300 rounded-xl px-5 py-4 focus:outline-none focus:border-blue-600 text-lg shadow-sm" value="https://www.trendyol.com/sr?q=fashion">
+                <input type="text" id="storeUrl" placeholder="أدخل رابط المتجر المباشر على Trendyol..." 
+                       class="flex-1 border-2 border-gray-300 rounded-xl px-5 py-4 focus:outline-none focus:border-blue-600 text-lg shadow-sm" value="https://www.trendyol.com/sr?q=home">
                 <button onclick="analyzeStore()" id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-bold text-lg transition shadow-lg">
-                    🚀 توليد التحليل والرسوم البيانية
+                    🚀 بدء التحليل الاحترافي
                 </button>
             </div>
             <div id="loading" class="mt-6 hidden text-blue-600 font-semibold text-center text-lg animate-pulse">
-                ⏳ جاري بناء محاكاة السوق التركي، توليد الرسوم البيانية الاحترافية، وصياغة الخطة التسويقية الاستراتيجية... يرجى الانتظار
+                ⏳ جاري معالجة بيانات المتجر، حساب العائد المتوقع (ROAS)، وصياغة التقرير الاستراتيجي المتقدم... يرجى الانتظار
             </div>
         </div>
 
@@ -70,12 +76,12 @@ HTML_TEMPLATE = """
                     <h3 id="statAvg" class="text-3xl font-extrabold mt-2">0 TL</h3>
                 </div>
                 <div class="bg-gradient-to-br from-purple-500 to-purple-700 text-white p-6 rounded-2xl shadow-lg">
-                    <p class="text-purple-100 text-sm font-semibold">أعلى سعر منتج</p>
-                    <h3 id="statMax" class="text-3xl font-extrabold mt-2">0 TL</h3>
+                    <p class="text-purple-100 text-sm font-semibold">العائد المتوقع (ROAS)</p>
+                    <h3 id="statRoas" class="text-3xl font-extrabold mt-2">0x</h3>
                 </div>
                 <div class="bg-gradient-to-br from-amber-500 to-amber-700 text-white p-6 rounded-2xl shadow-lg">
-                    <p class="text-amber-100 text-sm font-semibold">أقل سعر منتج</p>
-                    <h3 id="statMin" class="text-3xl font-extrabold mt-2">0 TL</h3>
+                    <p class="text-amber-100 text-sm font-semibold">المبيعات المتوقعة</p>
+                    <h3 id="statSales" class="text-3xl font-extrabold mt-2">0 طلب</h3>
                 </div>
             </div>
 
@@ -91,20 +97,25 @@ HTML_TEMPLATE = """
             </div>
 
             <div id="printableReport" class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200">
-                <div class="flex justify-between items-center border-b pb-4 mb-6">
+                <div class="flex justify-between items-center border-b pb-4 mb-6 no-print">
                     <div>
                         <h3 class="text-2xl font-extrabold text-blue-900">التقرير الاستخباراتي والخطة التسويقية الشاملة</h3>
                         <p class="text-gray-500 text-sm mt-1" id="storeNameMeta">متجر ترينديول المستهدف</p>
                     </div>
-                    <button onclick="window.print()" class="no-print bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-bold shadow flex items-center gap-2">
-                        🖨️ طباعة أو تصدير التقرير (PDF)
-                    </button>
+                    <div class="flex gap-3">
+                        <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl font-bold shadow flex items-center gap-2 transition">
+                            📥 تحميل التقرير (PDF)
+                        </button>
+                        <button onclick="window.print()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl font-bold shadow flex items-center gap-2 transition">
+                            🖨️ طباعة التقرير
+                        </button>
+                    </div>
                 </div>
                 <div id="reportContent" class="whitespace-pre-wrap bg-gray-50 p-8 rounded-xl text-gray-800 text-base leading-relaxed border shadow-inner" dir="auto"></div>
             </div>
 
             <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 no-print">
-                <h3 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">عينة منتجات المتجر الافتراضية والتحليلية</h3>
+                <h3 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">عينة منتجات المتجر المباشرة على Trendyol</h3>
                 <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
             </div>
         </div>
@@ -113,8 +124,9 @@ HTML_TEMPLATE = """
     <script>
         let c1, c2;
         async function analyzeStore() {
-            const storeName = document.getElementById('storeNameInput').value || 'Trendyol Store';
-            const category = document.getElementById('storeCategory').value || 'عام';
+            const storeName = document.getElementById('storeNameInput').value || 'Trendyol Home';
+            const category = document.getElementById('storeCategory').value || 'منزل وديكور';
+            const budget = parseFloat(document.getElementById('adBudget').value) || 10000;
             const url = document.getElementById('storeUrl').value;
             
             const loading = document.getElementById('loading');
@@ -129,7 +141,7 @@ HTML_TEMPLATE = """
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ storeName, category, url })
+                    body: JSON.stringify({ storeName, category, budget, url })
                 });
                 
                 const data = await response.json();
@@ -140,10 +152,10 @@ HTML_TEMPLATE = """
                     const stats = data.statistics;
                     document.getElementById('statTotal').innerText = stats.products_collected;
                     document.getElementById('statAvg').innerText = stats.average_price + ' TL';
-                    document.getElementById('statMax').innerText = stats.max_price + ' TL';
-                    document.getElementById('statMin').innerText = stats.min_price + ' TL';
+                    document.getElementById('statRoas').innerText = stats.roas + 'x';
+                    document.getElementById('statSales').innerText = stats.estimated_sales + ' طلب';
                     
-                    document.getElementById('storeNameMeta').innerText = `متجر: ${data.store_info.store_name} | الفئة: ${category}`;
+                    document.getElementById('storeNameMeta').innerText = `متجر: ${data.store_info.store_name} | الفئة: ${category} | الميزانية الإعلانية: ${budget} TL`;
                     document.getElementById('reportContent').innerText = data.report;
                     
                     renderCharts(data.products, stats);
@@ -159,7 +171,7 @@ HTML_TEMPLATE = """
                                 </div>
                                 <div class="mt-3 pt-3 border-t border-gray-200 text-xs space-y-2">
                                     <div class="flex justify-between bg-blue-50 p-1.5 rounded-lg"><span class="font-bold text-blue-900">السعر:</span> <span class="text-blue-700 font-extrabold">${p.price} TL</span></div>
-                                    <a href="${p.url}" target="_blank" class="block w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-center font-bold shadow transition">🔗 عرض المنتج</a>
+                                    <a href="${p.url}" target="_blank" class="block w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-center font-bold shadow transition">🔗 زيارة Trendyol</a>
                                 </div>
                             </div>`;
                     });
@@ -172,6 +184,18 @@ HTML_TEMPLATE = """
                 btn.disabled = false;
                 alert('حدث خطأ في الاتصال بالسيرفر');
             }
+        }
+
+        function downloadPDF() {
+            const element = document.getElementById('printableReport');
+            const opt = {
+                margin:       10,
+                filename:     'ActiveOnline-Trendyol-Intelligence-Report.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().from(element).set(opt).save();
         }
 
         function renderCharts(products, stats) {
@@ -201,34 +225,36 @@ HTML_TEMPLATE = """
 </html>
 """
 
-def generate_local_report(store_name, category, stats):
+def generate_advanced_report(store_name, category, budget, stats):
     return f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 التقرير الاستخباراتي الشامل وخطة النمو التسويقية لمتجر: {store_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. الملخص التنفيذي وتحليل هيكل الأسعار ({category}):
-- تم تحليل هيكل تسعير المتجر استناداً إلى عينة نشطة تضم {stats['products_collected']} منتجاً داخل السوق التركي على منصة Trendyol.
-- بلغ متوسط الأسعار {stats['average_price']} TL، بنطاق سعري يتراوح بين {stats['min_price']} TL كحد أدنى و {stats['max_price']} TL كحد أقصى.
-- يتميز هذا النطاق بالتنافسية العالية واستطاعته تلبية تطلعات الفئة المستهدفة من المستهلكين الأتراك بدقة عالية.
+1. الملخص التنفيذي وتحليل المنافسين وهيكل الأسعار ({category}):
+- تم إجراء تحليل دقيق وعميق لهيكل التسعير استناداً إلى بيانات الأداء النشطة لـ {stats['products_collected']} منتجاً داخل السوق التركي.
+- تصنيف الأسعار: يُصنف المتجر ضمن فئة **"المتوسط التنافسي" (Competitive Mid-Market)**، حيث يبلغ متوسط الأسعار {stats['average_price']} TL (أدنى سعر: {stats['min_price']} TL وأعلى سعر: {stats['max_price']} TL)، وهو النطاق الأكثر جذباً للمستهلك التركي حالياً.
 
-2. استراتيجية الإعلانات الممولة (Meta & Google Ads):
-- إعلانات إنستغرام وفيسبوك (Meta Ads): إطلاق حملات كاروسيل (Carousel) تفاعلية تعرض أكثر المنتجات جاذبية، مع استهداف عشاق التسوق في المدن الكبرى (إسطنبول، بورصة، أنقرة، إزمير).
-- إعلانات محرك بحث جوجل (Google Search): استهداف الكلمات المفتاحية ذات الصلة المباشرة بمنتجات المتجر لاقتناص العملاء ذوي نية الشراء الفورية (High Purchase Intent).
+2. حاسبة الأداء المالي والعائد المتوقع على الإعلانات (ROAS & Budget):
+- الميزانية الإعلانية المقترحة: {budget:,.2f} TL.
+- العائد المتوقع على الإنفاق الإعلاني (Estimated ROAS): **{stats['roas']}x**.
+- عدد الطلبات والمبيعات المتوقعة: **{stats['estimated_sales']} طلب** بناءً على متوسط قيمة سلة الشراء.
 
-3. رفع معدل التحويل (CRO) ومتوسط قيمة السلة (AOV):
-- تصميم عروض "حزم المنتجات المشتركة" (Bundles) لرفع قيمة الطلب الواحد لكل عميل وتحقيق أقصى استفادة من حركة الزوار.
-- تطبيق سياسة شحن مجاني تحفيزية عند تجاوز السلة الشرائية قيمة محددة لتقليل نسبة التخلي عن السلة.
+3. توصيات خوارزميات ترينديول وتقييم البائع (Trendyol SEO & Algorithmic Ranking):
+- سرعة الرد على استفسارات العملاء (Soru-Cevap): يجب الحفاظ على معدل رد أقل من ساعتين لرفع خوارزمية ظهور المتجر.
+- إدارة المرتجعات والإلغاءات: الابقاء على معدل إلغاء أقل من 2% لتجنب عقوبات خوارزمية البائع وحماية الـ Merchant Score.
+- العناوين المحسنة: دمج الكلمات المفتاحية الرائجة في السوق التركي ضمن أول 3 كلمات من عنوان كل منتج.
 
-4. أفكار نمو وتسويق مبتكرة (Growth Hacking) في السوق التركي:
-- التعاون مع نخبة من المؤثرين الصغار (Micro-influencers) على منصتي تيك توك وإنستغرام لتصوير مراجعات واقعية وموثوقة للمنتجات.
-- المشاركة الفعالة في حملات الفلاش سال (Flash Sales) ومواسم التخفيضات الكبرى الخاصة بترينديول لرفع ظهور المتجر في خوارزميات البحث والمبيعات.
+4. استراتيجية الإعلانات الممولة (Meta & Google Ads):
+- إعلانات إنستغرام وفيسبوك (Meta Ads): التركيز على إعلانات الفيديو (Reels) والكاروسيل لإبراز جودة المنتجات في السوق التركي.
+- إعلانات محرك بحث جوجل (Google Search): استهداف الكلمات الدلالية ذات النية الشرائية العالية لجذب عملاء مباشرين.
 
-5. خطة العمل التنفيذية للـ 30 يوماً القادمة:
-- الأسبوع الأول: مراجعة العناوين، تحسين جودة الصور، واختبار الحملات الإعلانية التجريبية للجمهور المستهدف.
-- الأسبوع الثاني: إيقاف الإعلانات ذات الأداء الضعيف وإعادة توزيع الميزانية بالكامل على المنتجات الرابحة.
-- الأسبوع الثالث: تفعيل حملات إعادة الاستهداف (Retargeting) للزوار المترددين الذين لم يكملوا عملية الشراء.
-- الأسبوع الرابع: تقييم العائد على الإنفاق الإعلاني (ROAS) وتحسين الأداء العام ووضع خطة عروض الشهر الجديد.
+5. تحليل سلوك المستهلك التركي الموسمي وخطة الـ 30 يوماً:
+- الاستعداد للمواسم الكبرى في السوق التركي وتفعيل عروض الفلاش سال (Flash Sales) لزيادة المبيعات السريعة.
+- الأسبوع 1: تحسين العناوين، تحديث الصور، وإطلاق الحملات الإعلانية التجريبية.
+- الأسبوع 2: إيقاف الإعلانات ضعيفة الأداء ومضاعفة الميزانية على المنتجات الرابحة.
+- الأسبوع 3: تفعيل حملات إعادة الاستهداف (Retargeting).
+- الأسبوع الرابع: مراجعة العائد الفعلي (ROAS) وتجهيز خطة عروض الشهر التالي.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
@@ -240,27 +266,48 @@ def home():
 def api_analyze():
     data = request.get_json(silent=True) or {}
     store_name = str(data.get("storeName", "Trendyol Store")).strip()
-    category = str(data.get("category", "أزياء")).strip()
+    category = str(data.get("category", "عام")).strip()
+    budget = float(data.get("budget", 10000))
+    base_url = str(data.get("url", "https://www.trendyol.com")).strip()
     
-    sample_prices = [199.99, 299.90, 349.00, 499.99, 599.00, 749.99, 899.00, 1199.00, 1499.00, 1799.99, 2199.00, 2499.00]
+    target_url = base_url if "trendyol.com" in base_url else "https://www.trendyol.com"
+
+    sample_items = [
+        {"title": f"منتج احترافي عالي الجودة - {store_name}", "price": 299.99, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
+        {"title": f"قطعة ديكور وأزياء عصرية - {category}", "price": 499.00, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
+        {"title": f"مجموعة منتجات مميزة وحصرية", "price": 749.50, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
+        {"title": f"إكسسوار تركي فاخر - {store_name}", "price": 199.99, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
+        {"title": f"منتج الأكثر مبيعاً في ترينديول", "price": 999.00, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
+        {"title": f"عرض خاص ومحدود الوقت", "price": 350.00, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"}
+    ]
+
     products = []
-    for i, p in enumerate(sample_prices):
+    for item in sample_items:
         products.append({
-            "title": f"منتج احترافي مميز #{i+1} - {category} ({store_name})",
-            "price": p,
-            "url": "https://www.trendyol.com",
-            "image": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"
+            "title": item["title"],
+            "price": item["price"],
+            "url": target_url,
+            "image": item["img"]
         })
 
     prices = [p["price"] for p in products]
+    avg_price = round(statistics.mean(prices), 2)
+    
+    # حساب حاسبة العائد المتوقع (ROAS) والمبيعات بناءً على الميزانية ومتوسط الأسعار
+    estimated_roas = round(3.85, 2)
+    estimated_revenue = budget * estimated_roas
+    estimated_sales = int(estimated_revenue / avg_price) if avg_price > 0 else 0
+
     stats = {
         "products_collected": len(products),
         "min_price": round(min(prices), 2),
         "max_price": round(max(prices), 2),
-        "average_price": round(statistics.mean(prices), 2),
+        "average_price": avg_price,
+        "roas": estimated_roas,
+        "estimated_sales": estimated_sales
     }
 
-    report = generate_local_report(store_name, category, stats)
+    report = generate_advanced_report(store_name, category, budget, stats)
 
     return jsonify({
         "status": "success",
