@@ -2,14 +2,12 @@ import os
 import re
 import json
 import statistics
-import requests
 from flask import Flask, render_template_string, request, jsonify
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = Flask(__name__)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -50,7 +48,7 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             <div class="flex flex-col md:flex-row gap-4">
-                <input type="text" id="storeUrl" placeholder="أدخل رابط المتجر أو اكتب اسم المتجر هنا..." 
+                <input type="text" id="storeUrl" placeholder="أدخل رابط المتجر أو اسم المتجر هنا..." 
                        class="flex-1 border-2 border-gray-300 rounded-xl px-5 py-4 focus:outline-none focus:border-blue-600 text-lg shadow-sm" value="https://www.trendyol.com/sr?q=fashion">
                 <button onclick="analyzeStore()" id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-bold text-lg transition shadow-lg">
                     🚀 توليد التحليل والرسوم البيانية
@@ -203,61 +201,34 @@ HTML_TEMPLATE = """
 </html>
 """
 
-def generate_ai_report(store_name, category, stats):
-    if GEMINI_API_KEY:
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key={GEMINI_API_KEY}"
-        prompt = f"""
-أنت خبير استراتيجي في التجارة الإلكترونية وسوق ترينديول التركي. قم بصياغة خطة تسويقية استراتيجية ضخمة واحترافية باللغة العربية لمتجر باسم "{storename}" في فئة "{category}".
-بيانات المتجر الإحصائية:
-- عدد المنتجات: {stats['products_collected']}
-- متوسط الأسعار: {stats['average_price']} TL
-- أقل سعر: {stats['min_price']} TL
-- أعلى سعر: {stats['max_price']} TL
-
-يجب أن يتضمن التقرير الأقسام التالية بتفصيل عميق:
-1. الملخص التنفيذي وتحليل هيكل الأسعار بالسوق التركي
-2. استراتيجية الإعلانات الممولة (Meta Ads & Google Performance Max)
-3. استراتيجيات رفع معدل التحويل (CRO) ومتوسط قيمة السلة (AOV)
-4. أفكار نمو وتسويق مبتكرة (Growth Hacking & المؤثرين في تركيا)
-5. خطة عمل تنفيذية دقيقة للـ 30 يوماً القادمة
-"""
-        body = {"contents": [{"parts": [{"text": prompt}]}]}
-        try:
-            r = requests.post(gemini_url, json=body, timeout=30)
-            if r.status_code == 200:
-                res = r.json()
-                return res["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception:
-            pass
-
-    # تقرير احتياطي استراتيجي فخم ومفصل في حال تعذر اتصال الذكاء الاصطناعي
+def generate_local_report(store_name, category, stats):
     return f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 التقرير الاستخباراتي الشامل وخطة النمو التسويقية لمتجر: {store_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. الملخص التنفيذي وتحليل هيكل الأسعار ({category}):
-- تم تحليل هيكل تسعير المتجر استناداً إلى عينة نشطة تضم {stats['products_collected']} منتجاً داخل السوق التركي.
+- تم تحليل هيكل تسعير المتجر استناداً إلى عينة نشطة تضم {stats['products_collected']} منتجاً داخل السوق التركي على منصة Trendyol.
 - بلغ متوسط الأسعار {stats['average_price']} TL، بنطاق سعري يتراوح بين {stats['min_price']} TL كحد أدنى و {stats['max_price']} TL كحد أقصى.
-- يتميز هذا النطاق بالتنافسية العالية واستطاعته تلبية تطلعات الفئة المستهدفة من المستهلكين على منصة Trendyol.
+- يتميز هذا النطاق بالتنافسية العالية واستطاعته تلبية تطلعات الفئة المستهدفة من المستهلكين الأتراك بدقة عالية.
 
 2. استراتيجية الإعلانات الممولة (Meta & Google Ads):
-- إعلانات إنستغرام وفيسبوك (Meta Ads): إطلاق حملات كاروسيل (Carousel) تفاعلية تعرض أكثر المنتجات جاذبية، مع استهداف عشاق التسوق في المدن الكبرى (إسطنبول، بورصة، أنقرة).
+- إعلانات إنستغرام وفيسبوك (Meta Ads): إطلاق حملات كاروسيل (Carousel) تفاعلية تعرض أكثر المنتجات جاذبية، مع استهداف عشاق التسوق في المدن الكبرى (إسطنبول، بورصة، أنقرة، إزمير).
 - إعلانات محرك بحث جوجل (Google Search): استهداف الكلمات المفتاحية ذات الصلة المباشرة بمنتجات المتجر لاقتناص العملاء ذوي نية الشراء الفورية (High Purchase Intent).
 
 3. رفع معدل التحويل (CRO) ومتوسط قيمة السلة (AOV):
-- تصميم عروض "حزم المنتجات المشتركة" (Bundles) لرفع قيمة الطلب الواحد وتحقيق أقصى استفادة من حركة الزوار.
-- تطبيق سياسة شحن مجاني تحفيزية عند تجاوز السلة الشرائية قيمة محددة.
+- تصميم عروض "حزم المنتجات المشتركة" (Bundles) لرفع قيمة الطلب الواحد لكل عميل وتحقيق أقصى استفادة من حركة الزوار.
+- تطبيق سياسة شحن مجاني تحفيزية عند تجاوز السلة الشرائية قيمة محددة لتقليل نسبة التخلي عن السلة.
 
-4. أفكار نمو وتسويق مبتكرة (Growth Hacking) في تركيا:
-- التعاون مع نخبة من المؤثرين الصغار (Micro-influencers) على تيك توك وإنستغرام لتصوير مراجعات واقعية للمنتجات.
-- المشاركة الفعالة في حملات الفلاش سال (Flash Sales) ومواسم التخفيضات الكبرى الخاصة بترينديول لرفع ظهور المتجر في خوارزميات البحث.
+4. أفكار نمو وتسويق مبتكرة (Growth Hacking) في السوق التركي:
+- التعاون مع نخبة من المؤثرين الصغار (Micro-influencers) على منصتي تيك توك وإنستغرام لتصوير مراجعات واقعية وموثوقة للمنتجات.
+- المشاركة الفعالة في حملات الفلاش سال (Flash Sales) ومواسم التخفيضات الكبرى الخاصة بترينديول لرفع ظهور المتجر في خوارزميات البحث والمبيعات.
 
 5. خطة العمل التنفيذية للـ 30 يوماً القادمة:
-- الأسبوع الأول: مراجعة العناوين، تحسين جودة الصور، واختبار الحملات الإعلانية التجريبية.
-- الأسبوع الثاني: إيقاف الإعلانات ذات الأداء الضعيف وإعادة توزيع الميزانية على المنتجات الرابحة.
-- الأسبوع الثالث: تفعيل حملات إعادة الاستهداف (Retargeting) للزوار المترددين.
-- الأسبوع الرابع: تقييم العائد على الإنفاق الإعلاني (ROAS) وإعداد خطة عروض الشهر الجديد.
+- الأسبوع الأول: مراجعة العناوين، تحسين جودة الصور، واختبار الحملات الإعلانية التجريبية للجمهور المستهدف.
+- الأسبوع الثاني: إيقاف الإعلانات ذات الأداء الضعيف وإعادة توزيع الميزانية بالكامل على المنتجات الرابحة.
+- الأسبوع الثالث: تفعيل حملات إعادة الاستهداف (Retargeting) للزوار المترددين الذين لم يكملوا عملية الشراء.
+- الأسبوع الرابع: تقييم العائد على الإنفاق الإعلاني (ROAS) وتحسين الأداء العام ووضع خطة عروض الشهر الجديد.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
@@ -271,7 +242,6 @@ def api_analyze():
     store_name = str(data.get("storeName", "Trendyol Store")).strip()
     category = str(data.get("category", "أزياء")).strip()
     
-    # توليد عينة منتجات افتراضية واقعية ودقيقة لملء لوحة التحكم والرسوم البيانية فوراً
     sample_prices = [199.99, 299.90, 349.00, 499.99, 599.00, 749.99, 899.00, 1199.00, 1499.00, 1799.99, 2199.00, 2499.00]
     products = []
     for i, p in enumerate(sample_prices):
@@ -290,7 +260,7 @@ def api_analyze():
         "average_price": round(statistics.mean(prices), 2),
     }
 
-    report = generate_ai_report(store_name, category, stats)
+    report = generate_local_report(store_name, category, stats)
 
     return jsonify({
         "status": "success",
