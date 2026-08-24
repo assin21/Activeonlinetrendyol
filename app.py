@@ -13,9 +13,10 @@ load_dotenv()
 
 app = Flask(__name__)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+# استخدام النموذج المدعوم بشكل قياسي ومباشر
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
 
-MAX_PRODUCTS = 16  # تقليل العدد قليلاً لضمان السرعة الفائقة واستجابة فورية
+MAX_PRODUCTS = 16
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -366,9 +367,7 @@ def make_ai_report(payload):
     if not GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY غير موجود")
 
-    # استخدام نموذج سريع وخفيف لضمان الاستجابة الفورية بدون Timeout
-    model_name = "gemini-1.5-flash"
-    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     
     compact_payload = {
         "store": payload.get("store"),
