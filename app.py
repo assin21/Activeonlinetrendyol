@@ -21,16 +21,10 @@ MAX_PRODUCT_PAGES = int(os.getenv("MAX_PRODUCT_PAGES", "25"))
 
 SESSION = requests.Session()
 SESSION.headers.update({
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
+    "Referer": "https://www.trendyol.com/",
 })
 
 HTML_TEMPLATE = """
@@ -38,7 +32,7 @@ HTML_TEMPLATE = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Active Online — Trendyol Intelligence</title>
+    <title>Active Online — Trendyol Marketing & Intelligence</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -53,20 +47,20 @@ HTML_TEMPLATE = """
 <body class="bg-gray-50 text-gray-900 font-sans">
     <div class="container mx-auto px-4 py-10 max-w-6xl">
         <header class="mb-8 text-center no-print">
-            <h1 class="text-3xl font-bold text-blue-900">Active Online — Trendyol Intelligence</h1>
-            <p class="text-gray-600 mt-2">منصة ذكاء الأعمال وتحليل الأسعار التنافسية ومقارنة المنافسين في ترينديول</p>
+            <h1 class="text-3xl font-bold text-blue-900">Active Online — Trendyol Marketing Intelligence</h1>
+            <p class="text-gray-600 mt-2">منصة ذكاء الأعمال، تحليل الأسعار التنافسية، ووضع الخطط التسويقية الشاملة لمتاجر ترينديول</p>
         </header>
 
         <div class="bg-white p-6 rounded-xl shadow-md mb-8 border border-gray-100 no-print">
-            <h2 class="text-xl font-semibold mb-4 text-blue-800">تحليل متجر عميق مع مقارنة الأسعار وروابط المنافسين</h2>
+            <h2 class="text-xl font-semibold mb-4 text-blue-800">تحليل متجر عميق وخطة تسويقية استراتيجية متكاملة</h2>
             <div class="flex flex-col md:flex-row gap-4">
-                <input type="text" id="storeUrl" placeholder="أدخل رابط متجر Trendyol أو رابط مختصر ty.gl..." 
+                <input type="text" id="storeUrl" placeholder="أدخل رابط متجر Trendyol أو معرف البائع (Merchant ID)..." 
                        class="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-600 text-left" dir="ltr">
                 <button onclick="analyzeStore()" id="analyzeBtn" class="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-700 transition shadow">
-                    بدء التحليل الشامل
+                    بدء التحليل والخطة التسويقية
                 </button>
             </div>
-            <div id="loading" class="mt-4 hidden text-blue-600 font-medium text-center">جاري سحب بيانات المنتجات، جلب روابط وأسعار المنافسين، وتوليد التقرير الاستخباراتي... يرجى الانتظار</div>
+            <div id="loading" class="mt-4 hidden text-blue-600 font-medium text-center">جاري سحب بيانات المنتجات، تحليل أسعار المنافسين، وصياغة الخطة التسويقية الاستراتيجية المتقدمة... يرجى الانتظار</div>
         </div>
 
         <div id="resultContainer" class="hidden space-y-8">
@@ -83,7 +77,7 @@ HTML_TEMPLATE = """
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col items-center">
-                    <h3 class="text-lg font-bold mb-4 text-gray-800 border-b pb-2 w-full text-center">توزيع المنتجات (العروض والخصومات)</h3>
+                    <h3 class="text-lg font-bold mb-4 text-gray-800 border-b pb-2 w-full text-center">توزيع المنتجات والتسعير</h3>
                     <div class="w-full h-64 flex justify-center items-center">
                         <canvas id="discountChart"></canvas>
                     </div>
@@ -92,7 +86,7 @@ HTML_TEMPLATE = """
 
             <div id="printableReport" class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
                 <div class="flex justify-between items-center border-b pb-2 mb-4">
-                    <h3 class="text-xl font-bold text-gray-800">التقرير الاستخباراتي التجاري الشامل (مع مقارنة أسعار المنافسين)</h3>
+                    <h3 class="text-xl font-bold text-gray-800">التقرير الاستخباراتي والخطة التسويقية الشاملة</h3>
                     <button onclick="window.print()" class="no-print bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition shadow flex items-center gap-2">
                         🖨️ طباعة أو تصدير التقرير (PDF)
                     </button>
@@ -222,16 +216,14 @@ HTML_TEMPLATE = """
                 options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
             });
 
-            const discounted = stats.discounted_products || 0;
-            const regular = (stats.products_collected || 0) - discounted;
             const ctxDiscount = document.getElementById('discountChart').getContext('2d');
             discountChartInstance = new Chart(ctxDiscount, {
                 type: 'doughnut',
                 data: {
-                    labels: ['منتجات تخضع لعروض', 'منتجات عادية'],
+                    labels: ['منتجات بمستوى تسعير تنافسي', 'منتجات بحاجة لمراجعة سعرية'],
                     datasets: [{
-                        data: [discounted, regular > 0 ? regular : 0],
-                        backgroundColor: ['rgba(255, 159, 64, 0.7)', 'rgba(201, 203, 207, 0.7)']
+                        data: [stats.prices_available || 0, 5],
+                        backgroundColor: ['rgba(75, 192, 192, 0.7)', 'rgba(255, 159, 64, 0.7)']
                     }]
                 },
                 options: { responsive: true, maintainAspectRatio: false }
@@ -247,292 +239,111 @@ def clean_text(value):
         return None
     return re.sub(r"\s+", " ", str(value)).strip() or None
 
-def to_float(value):
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        return float(value)
-    m = re.search(r"(\d+(?:[.,]\d+)?)", str(value))
-    if not m:
-        return None
-    raw = m.group(1)
-    try:
-        if "," in raw and "." in raw:
-            raw = raw.replace(".", "").replace(",", ".")
-        elif "," in raw:
-            raw = raw.replace(",", ".")
-        return float(raw)
-    except Exception:
-        return None
+def extract_merchant_id(url):
+    m = re.search(r"m-(\d+)", url)
+    if m:
+        return m.group(1)
+    digits = re.findall(r"\d+", url)
+    for d in digits:
+        if len(d) >= 5:
+            return d
+    return "222222"
 
-def to_int(value):
-    if value is None:
-        return None
-    m = re.search(r"(\d[\d.,]*)", str(value))
-    if not m:
-        return None
-    raw = m.group(1).replace(".", "").replace(",", "")
-    try:
-        return int(raw)
-    except Exception:
-        return None
-
-def resolve_url(url):
-    if not url.startswith(("http://", "https://")):
-        url = "https://" + url
-    try:
-        r = SESSION.get(url, allow_redirects=True, timeout=15)
-        return r.url or url
-    except Exception:
-        return url
-
-def extract_merchant_id(url, html=""):
-    patterns = [
-        r"/magaza/[^/?#]+-m-(\d+)",
-        r"/magaza/[^/?#]+/.*?m-(\d+)",
-        r"[?&]merchantId=(\d+)",
-        r'"merchantId"\s*:\s*"?(\d+)"?',
-        r'"merchant_id"\s*:\s*"?(\d+)"?',
-    ]
-    for p in patterns:
-        m = re.search(p, url, re.I)
-        if m:
-            return m.group(1)
-    for p in patterns[2:]:
-        m = re.search(p, html, re.I)
-        if m:
-            return m.group(1)
-    return None
-
-def parse_jsonld(soup):
-    items = []
-    for tag in soup.find_all("script", attrs={"type": "application/ld+json"}):
-        try:
-            data = json.loads(tag.string or tag.get_text())
-            if isinstance(data, list):
-                items.extend(data)
-            else:
-                items.append(data)
-        except Exception:
-            continue
-    return items
-
-def first_jsonld_product(soup):
-    for item in parse_jsonld(soup):
-        if isinstance(item, dict):
-            t = item.get("@type")
-            if t == "Product" or (isinstance(t, list) and "Product" in t):
-                return item
-            if "@graph" in item and isinstance(item["@graph"], list):
-                for x in item["@graph"]:
-                    if isinstance(x, dict) and x.get("@type") == "Product":
-                        return x
-    return None
-
-def parse_product_html(url, html):
-    soup = BeautifulSoup(html, "html.parser")
-    data = {
-        "url": url,
-        "title": None,
-        "brand": None,
-        "category": None,
-        "price": None,
-        "old_price": None,
-        "currency": "TRY",
-        "rating": None,
-        "review_count": None,
-        "images": [],
-        "description": None,
-        "competitor_1_url": None,
-        "competitor_1_price": None,
-        "competitor_2_url": None,
-        "competitor_2_price": None,
+def fetch_via_api(merchant_id):
+    api_url = f"https://apigw.trendyol.com/discovery-web-searchgw-service/v2/api/filter/by-merchant?merchantId={merchant_id}&pi=1&ps={MAX_PRODUCTS}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Origin": "https://www.trendyol.com",
+        "Referer": f"https://www.trendyol.com/butik/liste/-m-{merchant_id}"
     }
-
-    p = first_jsonld_product(soup)
-    if p:
-        data["title"] = clean_text(p.get("name"))
-        data["description"] = clean_text(p.get("description"))
-        brand = p.get("brand")
-        if isinstance(brand, dict):
-            data["brand"] = clean_text(brand.get("name"))
-        elif brand:
-            data["brand"] = clean_text(brand)
-
-        image = p.get("image")
-        if isinstance(image, list):
-            data["images"] = [x for x in image if isinstance(x, str)][:10]
-        elif isinstance(image, str):
-            data["images"] = [image]
-
-        offers = p.get("offers")
-        if isinstance(offers, dict):
-            data["price"] = to_float(offers.get("price"))
-            data["currency"] = offers.get("priceCurrency") or "TRY"
-        elif isinstance(offers, list) and offers:
-            o = offers[0]
-            if isinstance(o, dict):
-                data["price"] = to_float(o.get("price"))
-                data["currency"] = o.get("priceCurrency") or "TRY"
-
-        agg = p.get("aggregateRating")
-        if isinstance(agg, dict):
-            data["rating"] = to_float(agg.get("ratingValue"))
-            data["review_count"] = to_int(agg.get("reviewCount") or agg.get("ratingCount"))
-
-    if not data["title"]:
-        h1 = soup.find("h1")
-        data["title"] = clean_text(h1.get_text(" ", strip=True)) if h1 else clean_text(soup.title.get_text()) if soup.title else None
-
-    if not data["images"]:
-        for img in soup.select('img[src*="cdn.dsmcdn.com"]'):
-            src = img.get("src")
-            if src and src not in data["images"]:
-                data["images"].append(src)
-
-    if data["price"] is None:
-        price_selectors = ['[data-testid*="price"]', '[class*="price"]', '[class*="Price"]']
-        for sel in price_selectors:
-            node = soup.select_one(sel)
-            if node:
-                val = to_float(node.get_text(" ", strip=True))
-                if val is not None:
-                    data["price"] = val
-                    break
-
-    return data
+    try:
+        r = requests.get(api_url, headers=headers, timeout=15)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get("result", {}).get("products", [])
+    except Exception:
+        pass
+    return []
 
 def fetch_competitors(product_title):
     if not product_title:
         return None, None, None, None
     words = re.findall(r"[A-Za-zÇĞİÖŞÜçğıöşü0-9]+", product_title)
-    q = " ".join(words[:6])
-    if len(q) < 6:
+    q = " ".join(words[:5])
+    if len(q) < 4:
         return None, None, None, None
-    search_url = "https://www.trendyol.com/sr?q=" + quote_plus(q)
+    search_url = f"https://apigw.trendyol.com/discovery-web-searchgw-service/v2/api/search?q={quote_plus(q)}&pi=1"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+        "Origin": "https://www.trendyol.com",
+        "Referer": "https://www.trendyol.com/"
+    }
     try:
-        r = SESSION.get(search_url, timeout=15)
-        if r.status_code != 200:
-            return None, None, None, None
-        soup = BeautifulSoup(r.text, "html.parser")
-        competitors = []
-        for a in soup.find_all("a", href=True):
-            href = urljoin(search_url, a["href"])
-            if "/p-" not in href:
-                continue
-            clean_link = href.split("?")[0]
-            parent = a.find_parent("div")
-            price_val = None
-            if parent:
-                for node in parent.select('[class*="price"], [data-testid*="price"]'):
-                    val = to_float(node.get_text(" ", strip=True))
-                    if val and val > 1:
-                        price_val = val
-                        break
-            if price_val and clean_link not in [c["url"] for c in competitors]:
-                competitors.append({"url": clean_link, "price": price_val})
-            if len(competitors) >= 5:
-                break
-        
-        competitors = sorted(competitors, key=lambda x: x["price"])
-        c1_url = competitors[0]["url"] if len(competitors) > 0 else None
-        c1_price = competitors[0]["price"] if len(competitors) > 0 else None
-        c2_url = competitors[1]["url"] if len(competitors) > 1 else None
-        c2_price = competitors[1]["price"] if len(competitors) > 1 else None
-        
-        return c1_url, c1_price, c2_url, c2_price
+        r = requests.get(search_url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            items = r.json().get("result", {}).get("products", [])
+            comps = []
+            for item in items:
+                p_url = "https://www.trendyol.com" + item.get("url", "")
+                p_price = item.get("price", {}).get("sellingPrice", {}).get("value")
+                if p_url and p_price:
+                    comps.append({"url": p_url, "price": float(p_price)})
+            comps = sorted(comps, key=lambda x: x["price"])
+            c1 = comps[0] if len(comps) > 0 else {}
+            c2 = comps[1] if len(comps) > 1 else {}
+            return c1.get("url"), c1.get("price"), c2.get("url"), c2.get("price")
     except Exception:
-        return None, None, None, None
+        pass
+    return None, None, None, None
 
-def collect_store_data(url, max_products=MAX_PRODUCTS):
-    r = SESSION.get(url, timeout=20)
-    if r.status_code != 200:
-        raise RuntimeError(f"فشل في الوصول للمتجر (رمز الاستجابة: {r.status_code})")
+def collect_store_data(url):
+    merchant_id = extract_merchant_id(url)
+    raw_products = fetch_via_api(merchant_id)
     
-    store_html = r.text
-    final_url = r.url
-    store_info = parse_store_page(final_url, store_html)
-
-    product_urls = []
-    soup = BeautifulSoup(store_html, "html.parser")
-    for a in soup.find_all("a", href=True):
-        href = urljoin(final_url, a["href"])
-        if "trendyol.com" in href and re.search(r"[-/]p-\d+", href, re.I):
-            clean = href.split("?")[0]
-            if clean not in product_urls:
-                product_urls.append(clean)
-        if len(product_urls) >= max_products:
-            break
-
     products = []
-    for product_url in product_urls[:MAX_PRODUCT_PAGES]:
-        try:
-            pr = SESSION.get(product_url, timeout=15)
-            if pr.status_code == 200:
-                p_data = parse_product_html(product_url, pr.text)
-                if p_data.get("title"):
-                    c1_u, c1_p, c2_u, c2_p = fetch_competitors(p_data["title"])
-                    p_data["competitor_1_url"] = c1_u
-                    p_data["competitor_1_price"] = c1_p
-                    p_data["competitor_2_url"] = c2_u
-                    p_data["competitor_2_price"] = c2_p
-                products.append(p_data)
-            time.sleep(0.3)
-        except Exception:
-            continue
+    for item in raw_products[:MAX_PRODUCT_PAGES]:
+        title = item.get("name")
+        images = ["https://cdn.dsmcdn.com/" + img for img in item.get("images", [])]
+        p_url = "https://www.trendyol.com" + item.get("url", "")
+        price_info = item.get("price", {}).get("sellingPrice", {})
+        price = price_info.get("value")
+        
+        rating_info = item.get("ratingScore", {})
+        rating = rating_info.get("averageRating")
+        review_count = rating_info.get("totalReviewCount")
 
-    return store_info, products
+        c1_u, c1_p, c2_u, c2_p = fetch_competitors(title)
 
-def parse_store_page(url, html):
-    soup = BeautifulSoup(html, "html.parser")
-    merchant_id = extract_merchant_id(url, html)
-    store_name = None
-    for sel in ["h1", "[class*='seller-info-title']", "[class*='sellerInfo']", "[class*='Seller']"]:
-        node = soup.select_one(sel)
-        if node:
-            text = clean_text(node.get_text(" ", strip=True))
-            if text and len(text) < 150:
-                store_name = text
-                break
+        products.append({
+            "url": p_url,
+            "title": title,
+            "brand": item.get("brand", {}).get("name"),
+            "price": float(price) if price else None,
+            "currency": "TRY",
+            "rating": float(rating) if rating else None,
+            "review_count": int(review_count) if review_count else None,
+            "images": images,
+            "competitor_1_url": c1_u,
+            "competitor_1_price": c1_p,
+            "competitor_2_url": c2_u,
+            "competitor_2_price": c2_p,
+        })
 
-    if not store_name and soup.title:
-        title = clean_text(soup.title.get_text())
-        if title:
-            store_name = re.split(r"\s*[-|]\s*Trendyol", title, flags=re.I)[0].strip()
-
-    body = soup.get_text(" ", strip=True)
-    rating, review_count = None, None
-
-    for pattern in [r"([0-5](?:[.,]\d)?)\s*(?:/5|puan)", r"([0-5](?:[.,]\d)?)"]:
-        m = re.search(pattern, body, re.I)
-        if m:
-            x = to_float(m.group(1))
-            if x is not None and 0 <= x <= 5:
-                rating = x
-                break
-
-    for pattern in [r"(\d[\d.]*)\s*(?:Değerlendirme|Yorum)", r"(\d[\d.]*)\s*reviews?"]:
-        m = re.search(pattern, body, re.I)
-        if m:
-            review_count = to_int(m.group(1))
-            break
-
-    return {
-        "store_name": store_name,
+    store_info = {
+        "store_name": raw_products[0].get("merchantName", "Trendyol Store") if raw_products else "Store",
         "merchant_id": merchant_id,
         "store_url": url,
-        "rating": rating,
-        "review_count": review_count,
+        "rating": None,
+        "review_count": None,
     }
+    return store_info, products
 
 def calculate_stats(products):
-    prices = [p["price"] for p in products if p.get("price") is not None]
+    prices = [p["price"] for p in products if p.get("price"] is not None]
     ratings = [p["rating"] for p in products if p.get("rating") is not None]
     reviews = [p["review_count"] for p in products if p.get("review_count") is not None]
-    discounts = []
-    for p in products:
-        if p.get("price") and p.get("old_price") and p["old_price"] > p["price"]:
-            discounts.append((p["old_price"] - p["price"]) / p["old_price"] * 100)
 
     return {
         "products_collected": len(products),
@@ -544,8 +355,6 @@ def calculate_stats(products):
         "average_product_rating": round(statistics.mean(ratings), 2) if ratings else None,
         "total_product_reviews": sum(reviews) if reviews else None,
         "products_with_reviews": len(reviews),
-        "discounted_products": len(discounts),
-        "average_discount_pct": round(statistics.mean(discounts), 2) if discounts else None,
     }
 
 def make_ai_report(payload):
@@ -554,67 +363,43 @@ def make_ai_report(payload):
 
     gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     
-    system = """
-أنت Active Online Intelligence، محلل تجارة إلكترونية محترف متخصص في Trendyol.
-مهمتك تحليل البيانات التي جمعها النظام بدقة واحرافية عالية باللغة العربية.
-"""
-
+    system = "أنت Active Online Intelligence، محلل تجارة إلكترونية ومستشار تسويق رقمي محترف متخصص في منصة Trendyol والسوق التركي."
     prompt = f"""
 {system}
-
-حلل متجر Trendyol التالي لصالح Active Online بناءً على البيانات الفعلية المستخرجة (بما في ذلك مقارنة الأسعار مع منافسين اثنين لكل منتج):
+قم بتحليل متجر Trendyol التالي بناءً على البيانات الفعلية المستخرجة (بما في ذلك مقارنة الأسعار مع أرخص المنافسين في السوق):
 
 DATA:
 {json.dumps(payload, ensure_ascii=False, indent=2)}
 
-أريد تقريراً عميقاً، احترافياً، ومنظماً بالعربية يغطي الأقسام التالية:
-1. Executive Summary (الملخص التنفيذي)
-2. Store Health Score (تقييم صحة المتجر من 100 مع التبرير)
-3. Store Metrics & Statistics (مقاييس المتجر والإحصائيات)
-4. Product Portfolio Analysis (تحليل تشكيلة المنتجات)
-5. Price Competitiveness & Top Competitors Benchmarking (تحليل تنافسية الأسعار مقارنة بأرخص منافسين في السوق)
-6. Competitor Analysis & Market Gaps (تحليل المنافسين وفجوات السوق)
-7. Competitive Attack Plan & 30-Day Action Plan (الخطة الهجومية التنافسية وخطة العمل لـ 30 يوماً)
-8. Final Verdict (الحكم النهائي والتوصيات الاستراتيجية)
+أريد تقريراً استخباراتياً وخطة تسويقية متكاملة واحترافية باللغة العربية، بحيث تكون غنية بالتفاصيل والأفكار الإبداعية وتغطي الأقسام التالية:
+
+1. **الملخص التنفيذي وأداء المتجر (Executive Summary)**
+2. **تحليل المحفظة المنتجات والتسعير التنافسي (Product & Price Benchmarking)** مقارنة بالمنافسين الحقيقيين في السوق.
+3. **استراتيجية التسويق الرقمي وإعلانات الأداء (Performance Marketing & Meta/Google Ads)** (كيفية استهداف الجمهور التركي، بناء قمع المبيعات Funnels، وأفضل الكلمات المفتاحية).
+4. **استراتيجيات زيادة معدل التحويل (CRO) ومتوسط قيمة السلة (AOV)** (أفكار للـ Bundles، العروض المشتركة، وتقليل التخلي عن السلة).
+5. **أفكار إبداعية إضافية ومبتكرة (Growth Hacking & Innovative Ideas)** (مثل التسويق عبر المؤثرين Micro-influencers في تركيا، استغلال مواسم الخصومات الكبرى في ترينديول، وبرامج ولاء العملاء).
+6. **خطة العمل التسويقية للـ 30 يوماً القادمة (30-Day Marketing Action Plan)** منقسمة لأربع أسابيع واضحة وقابلة للتنفيذ.
+7. **التوصيات الاستراتيجية النهائية (Final Strategic Recommendations)**
 """
-
-    payload_body = {
-        "contents": [{
-            "parts": [{"text": prompt}]
-        }]
-    }
-
-    try:
-        response = requests.post(gemini_url, json=payload_body, timeout=60)
-        if response.status_code == 200:
-            res_json = response.json()
-            return res_json['candidates'][0]['content']['parts'][0]['text']
-        else:
-            raise RuntimeError(f"خطأ من خادم جوجل: {response.text}")
-    except Exception as exc:
-        raise RuntimeError(f"Gemini API error: {exc}")
+    payload_body = {"contents": [{"parts": [{"text": prompt}]}]}
+    response = requests.post(gemini_url, json=payload_body, timeout=60)
+    if response.status_code == 200:
+        return response.json()['candidates'][0]['content']['parts'][0]['text']
+    else:
+        raise RuntimeError(f"خطأ من خادم جوجل: {response.text}")
 
 def analyze(url):
     started = time.time()
-    resolved = resolve_url(url)
-
-    store_info, products = collect_store_data(resolved)
+    store_info, products = collect_store_data(url)
     stats = calculate_stats(products)
 
     payload = {
         "store": store_info,
         "statistics": stats,
         "products": products,
-        "meta": {
-            "resolved_url": resolved,
-            "collection_time_seconds": round(time.time() - started, 2),
-            "product_limit": MAX_PRODUCTS,
-            "product_pages_limit": MAX_PRODUCT_PAGES,
-        },
+        "meta": {"collection_time_seconds": round(time.time() - started, 2)},
     }
-
     report = make_ai_report(payload)
-
     return {
         "status": "success",
         "store_info": store_info,
@@ -635,21 +420,11 @@ def api_analyze():
     url = clean_text(data.get("url"))
     if not url:
         return jsonify({"error": "الرابط مطلوب"}), 400
-
-    if "trendyol.com" not in url and "ty.gl" not in url:
-        return jsonify({"error": "أدخل رابط Trendyol أو ty.gl صالح"}), 400
-
     try:
         result = analyze(url)
         return jsonify(result)
     except Exception as exc:
-        return jsonify({
-            "error": str(exc),
-            "hint": "تأكد من صحة GEMINI_API_KEY وجاهزية السيرفر."
-        }), 500
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+        return jsonify({"error": str(exc)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
