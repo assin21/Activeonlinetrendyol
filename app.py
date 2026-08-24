@@ -15,7 +15,7 @@ app = Flask(__name__)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
-MAX_PRODUCTS = 24  # عدد ممتاز لجلب عينة دقيقة وغنية بالبيانات للرسوم البيانية
+MAX_PRODUCTS = 24
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -152,13 +152,19 @@ HTML_TEMPLATE = """
             resultContainer.classList.add('hidden');
             btn.disabled = true;
             
+            // إعداد نظام مهلة انتظار بـ 120 ثانية كاملة لكي لا ينقطع الاتصال من جهة المتصفح
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 120000);
+
             try {
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url })
+                    body: JSON.stringify({ url }),
+                    signal: controller.signal
                 });
                 
+                clearTimeout(timeoutId);
                 const data = await response.json();
                 loading.classList.add('hidden');
                 btn.disabled = false;
@@ -202,7 +208,11 @@ HTML_TEMPLATE = """
             } catch (err) {
                 loading.classList.add('hidden');
                 btn.disabled = false;
-                alert('حدث خطأ في الاتصال بالسيرفر');
+                if (err.name === 'AbortError') {
+                    alert('انتهت مهلة الانتظار (دقيقتين). استغرق الذكاء الاصطناعي وقتاً أطول من المعتاد، يجدر المحاولة مرة أخرى.');
+                } else {
+                    alert('حدث خطأ في الاتصال بالسيرفر');
+                }
             }
         }
 
@@ -375,7 +385,6 @@ DATA:
 5. خطة عمل تسويقية قابلة للتنفيذ للـ 30 يوماً القادمة
 """
     payload_body = {"contents": [{"parts": [{"text": prompt}]}]}
-    # رفع مهلة الانتظار إلى 120 ثانية (دقيقتين)
     response = requests.post(gemini_url, json=payload_body, timeout=120)
     if response.status_code == 200:
         return response.json()['candidates'][0]['content']['parts'][0]['text']
@@ -386,7 +395,7 @@ DATA:
 def home():
     return render_template_string(HTML_TEMPLATE)
 
-@app.route("/api/analyze", methods="/" if False else ["POST"])
+@app.route("/api/analyze", methods=["POST"])
 def api_analyze():
     data = request.get_json(silent=True) or {}
     url = clean_text(data.get("url"))
