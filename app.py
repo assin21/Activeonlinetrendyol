@@ -1,4 +1,4 @@
-import os
+       import os
 import re
 import json
 import time
@@ -22,8 +22,7 @@ MAX_PRODUCT_PAGES = int(os.getenv("MAX_PRODUCT_PAGES", "25"))
 SESSION = requests.Session()
 SESSION.headers.update({
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept": "application/json, text/plain, */*",
     "Referer": "https://www.trendyol.com/",
 })
 
@@ -32,7 +31,7 @@ HTML_TEMPLATE = """
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Active Online — Trendyol Marketing & Intelligence</title>
+    <title>Active Online — Trendyol Marketing Intelligence</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -341,7 +340,7 @@ def collect_store_data(url):
     return store_info, products
 
 def calculate_stats(products):
-    prices = [p["price"] for p in products if p.get("price"] is not None]
+    prices = [p["price"] for p in products if p.get("price") is not None]
     ratings = [p["rating"] for p in products if p.get("rating") is not None]
     reviews = [p["review_count"] for p in products if p.get("review_count") is not None]
 
