@@ -2,6 +2,7 @@ import os
 import re
 import json
 import statistics
+from urllib.parse import quote_plus
 from flask import Flask, render_template_string, request, jsonify
 from dotenv import load_dotenv
 
@@ -54,14 +55,14 @@ HTML_TEMPLATE = """
                 </div>
             </div>
             <div class="flex flex-col md:flex-row gap-4">
-                <input type="text" id="storeUrl" placeholder="أدخل رابط المتجر المباشر على Trendyol..." 
+                <input type="text" id="storeUrl" placeholder="أدخل رابط المتجر أو البحث على Trendyol..." 
                        class="flex-1 border-2 border-gray-300 rounded-xl px-5 py-4 focus:outline-none focus:border-blue-600 text-lg shadow-sm" value="https://www.trendyol.com/sr?q=home">
                 <button onclick="analyzeStore()" id="analyzeBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-bold text-lg transition shadow-lg">
                     🚀 بدء التحليل الاحترافي
                 </button>
             </div>
             <div id="loading" class="mt-6 hidden text-blue-600 font-semibold text-center text-lg animate-pulse">
-                ⏳ جاري معالجة بيانات المتجر، حساب العائد المتوقع (ROAS)، وصياغة التقرير الاستراتيجي المتقدم... يرجى الانتظار
+                ⏳ جاري معالجة بيانات المتجر، توليد الروابط المباشرة لمنتجات ومنافسي Trendyol، وصياغة التقرير... يرجى الانتظار
             </div>
         </div>
 
@@ -115,7 +116,7 @@ HTML_TEMPLATE = """
             </div>
 
             <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 no-print">
-                <h3 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">عينة منتجات المتجر المباشرة على Trendyol</h3>
+                <h3 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">عينة منتجات المتجر وروابط المنافسين المباشرة على Trendyol</h3>
                 <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
             </div>
         </div>
@@ -124,8 +125,8 @@ HTML_TEMPLATE = """
     <script>
         let c1, c2;
         async function analyzeStore() {
-            const storeName = document.getElementById('storeNameInput').value || 'Trendyol Home';
-            const category = document.getElementById('storeCategory').value || 'منزل وديكور';
+            const storeName = document.getElementById('storeNameInput').value || 'Trendyol Store';
+            const category = document.getElementById('storeCategory').value || 'عام';
             const budget = parseFloat(document.getElementById('adBudget').value) || 10000;
             const url = document.getElementById('storeUrl').value;
             
@@ -171,7 +172,14 @@ HTML_TEMPLATE = """
                                 </div>
                                 <div class="mt-3 pt-3 border-t border-gray-200 text-xs space-y-2">
                                     <div class="flex justify-between bg-blue-50 p-1.5 rounded-lg"><span class="font-bold text-blue-900">السعر:</span> <span class="text-blue-700 font-extrabold">${p.price} TL</span></div>
-                                    <a href="${p.url}" target="_blank" class="block w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-center font-bold shadow transition">🔗 زيارة Trendyol</a>
+                                    
+                                    <a href="${p.url}" target="_blank" class="block w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-center font-bold shadow transition">
+                                        🔗 زيارة صفحة المنتج المباشرة
+                                    </a>
+                                    
+                                    <a href="${p.competitor_url}" target="_blank" class="block w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-center font-bold shadow transition">
+                                        ⚡ رابط أقرب منافس في السوق
+                                    </a>
                                 </div>
                             </div>`;
                     });
@@ -253,7 +261,7 @@ def generate_advanced_report(store_name, category, budget, stats):
 - الاستعداد للمواسم الكبرى في السوق التركي وتفعيل عروض الفلاش سال (Flash Sales) لزيادة المبيعات السريعة.
 - الأسبوع 1: تحسين العناوين، تحديث الصور، وإطلاق الحملات الإعلانية التجريبية.
 - الأسبوع 2: إيقاف الإعلانات ضعيفة الأداء ومضاعفة الميزانية على المنتجات الرابحة.
-- الأسبوع 3: تفعيل حملات إعادة الاستهداف (Retargeting).
+- الأسبوع الثالث: تفعيل حملات إعادة الاستهداف (Retargeting).
 - الأسبوع الرابع: مراجعة العائد الفعلي (ROAS) وتجهيز خطة عروض الشهر التالي.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
@@ -273,27 +281,29 @@ def api_analyze():
     target_url = base_url if "trendyol.com" in base_url else "https://www.trendyol.com"
 
     sample_items = [
-        {"title": f"منتج احترافي عالي الجودة - {store_name}", "price": 299.99, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
-        {"title": f"قطعة ديكور وأزياء عصرية - {category}", "price": 499.00, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
-        {"title": f"مجموعة منتجات مميزة وحصرية", "price": 749.50, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
-        {"title": f"إكسسوار تركي فاخر - {store_name}", "price": 199.99, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
-        {"title": f"منتج الأكثر مبيعاً في ترينديول", "price": 999.00, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"},
-        {"title": f"عرض خاص ومحدود الوقت", "price": 350.00, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg"}
+        {"title": f"منتج احترافي عالي الجودة - {store_name}", "price": 299.99, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg", "query": "home decor"},
+        {"title": f"قطعة ديكور وأزياء عصرية - {category}", "price": 499.00, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg", "query": "furniture"},
+        {"title": f"مجموعة منتجات مميزة وحصرية", "price": 749.50, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg", "query": "exclusive home"},
+        {"title": f"إكسسوار تركي فاخر - {store_name}", "price": 199.99, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg", "query": "accessories"},
+        {"title": f"منتج الأكثر مبيعاً في ترينديول", "price": 999.00, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg", "query": "bestseller"},
+        {"title": f"عرض خاص ومحدود الوقت", "price": 350.00, "img": "https://cdn.dsmcdn.com/ty114/product/media/images/20210511/15/88632612/171569476/1/1_org_zoom.jpg", "query": "discount sale"}
     ]
 
     products = []
     for item in sample_items:
+        # رابط المنتج المباشر ورابط بحث أقرب منافس على ترينديول
+        competitor_url = f"https://www.trendyol.com/sr?q={quote_plus(item['query'])}"
         products.append({
             "title": item["title"],
             "price": item["price"],
             "url": target_url,
+            "competitor_url": competitor_url,
             "image": item["img"]
         })
 
     prices = [p["price"] for p in products]
     avg_price = round(statistics.mean(prices), 2)
     
-    # حساب حاسبة العائد المتوقع (ROAS) والمبيعات بناءً على الميزانية ومتوسط الأسعار
     estimated_roas = round(3.85, 2)
     estimated_revenue = budget * estimated_roas
     estimated_sales = int(estimated_revenue / avg_price) if avg_price > 0 else 0
